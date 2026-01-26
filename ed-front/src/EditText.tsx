@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { EditorState } from "@codemirror/state";
+import { EditorState, StateEffect } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { basicSetup } from "@codemirror/basic-setup";
 import { python } from "@codemirror/lang-python";
@@ -7,16 +7,16 @@ import { javascript } from "@codemirror/lang-javascript";
 import { cpp } from "@codemirror/lang-cpp";
 import { java } from "@codemirror/lang-java";
 
+type Language = "python" | "cpp" | "java" | "go" | "javascript";
 
 type Props = {
   value: string;
   onEdit: (v: string) => void;
-  language: "python" | "cpp" | "java" | "go" | "javascript";
-
+  language: Language;
 };
 
-function getLanguageExtension(language: Props["language"]) {
-  switch (language) {
+function languageExt(lang: Language) {
+  switch (lang) {
     case "python":
       return python();
     case "cpp":
@@ -25,38 +25,59 @@ function getLanguageExtension(language: Props["language"]) {
       return java();
     case "javascript":
       return javascript({ typescript: true });
-    case "go":
-      return []; // fallback, no official CM6 Go yet
     default:
       return [];
   }
 }
 
-
 export default function EditText({ value, onEdit, language }: Props) {
-  const box = useRef<HTMLDivElement | null>(null);
+  const container = useRef<HTMLDivElement>(null);
+  const viewRef = useRef<EditorView | null>(null);
 
+  // 1️⃣ Create editor ONCE
   useEffect(() => {
-    if (!box.current) return;
+    if (!container.current) return;
 
-    const view = new EditorView({
-      state: EditorState.create({
-        doc: value,
-        extensions: [
-          basicSetup,
-          getLanguageExtension(language),
-          EditorView.updateListener.of((u) => {
-            if (u.docChanged) {
-              onEdit(u.state.doc.toString());
-            }
-          }),
-        ],
-      }),
-      parent: box.current,
+    const state = EditorState.create({
+      doc: value,
+      extensions: [
+        basicSetup,
+        languageExt(language),
+        EditorView.updateListener.of((u) => {
+          if (u.docChanged) {
+            onEdit(u.state.doc.toString());
+          }
+        }),
+      ],
     });
 
-    return () => view.destroy();
-  }, [value, language]);
+    viewRef.current = new EditorView({
+      state,
+      parent: container.current,
+    });
 
-  return <div ref={box} style={{ height: 300, border: "1px solid #444" }} />;
+    return () => {
+      viewRef.current?.destroy();
+      viewRef.current = null;
+    };
+  }, []); // 👈 EMPTY DEP ARRAY
+
+  // 2️⃣ Update language WITHOUT recreating editor
+  useEffect(() => {
+    if (!viewRef.current) return;
+
+    viewRef.current.dispatch({
+      effects: StateEffect.reconfigure.of([
+        basicSetup,
+        languageExt(language),
+        EditorView.updateListener.of((u) => {
+          if (u.docChanged) {
+            onEdit(u.state.doc.toString());
+          }
+        }),
+      ]),
+    });
+  }, [language]);
+
+  return <div ref={container} style={{ height: 300, border: "1px solid #444" }} />;
 }
