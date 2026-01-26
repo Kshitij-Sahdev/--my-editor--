@@ -46,9 +46,46 @@ export default function ControlApp() {
     "aint shi will be executed"
   );
 
-  function run() {
-    setResult("connect the backend stupid");
+  async function run() {
+  
+  console.log("RUN PAYLOAD", {
+  language,
+  code: text,
+});
+
+  
+  setResult("running...");
+
+
+  try {
+    const res = await fetch("http://localhost:8080/run", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        language: language,
+        code: text,
+        stdin: "",
+      }),
+    });
+
+    const data = await res.json();
+
+    let output = "";
+
+    if (data.stdout) output += data.stdout;
+    if (data.stderr) output += data.stderr;
+
+    if (output.trim() === "") {
+      output = "(no output)";
+    }
+
+    setResult(output);
+  } catch (err) {
+    setResult("backend unreachable or crashed");
   }
+}
 
   useEffect(() => {
     setText(templates[language]);
