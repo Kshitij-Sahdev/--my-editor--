@@ -93,34 +93,44 @@ export default function ControlApp() {
 
 
   return (
-    <div style={{ padding: 16 }}>
-      <h1>Code Runner</h1>
+  <div className="app-root">
+    {/* Top bar */}
+    <div className="top-bar">
+      <div className="brand">run()</div>
 
-      <select
-        value={language}
-        onChange={(e) => setLanguage(e.target.value as typeof language)}
-      >
-        <option value="python">Python</option>
-        <option value="cpp">C++</option>
-        <option value="java">Java</option>
-        <option value="go">Go</option>
-        <option value="javascript">JavaScript</option>
-      </select>
+      <div className="controls">
+        <select
+          value={language}
+          onChange={(e) => setLanguage(e.target.value as typeof language)}
+        >
+          <option value="python">Python</option>
+          <option value="cpp">C++</option>
+          <option value="java">Java</option>
+          <option value="go">Go</option>
+          <option value="javascript">JavaScript</option>
+        </select>
 
+        <button onClick={run}>Run</button>
+      </div>
+    </div>
 
+    {/* Editor */}
+    <div className="editor-wrap">
       <EditText
         value={text}
         onEdit={setText}
         language={language}
       />
+    </div>
 
-      <button onClick={run}>
-        Run
-      </button>
-
-      <pre>
-        {result}
+    {/* Output */}
+    <div className="output-wrap">
+      <div className="output-title">Output</div>
+      <pre className="output-body">
+        {result || "(no output yet)"}
       </pre>
     </div>
-  );
+  </div>
+);
+
 }
