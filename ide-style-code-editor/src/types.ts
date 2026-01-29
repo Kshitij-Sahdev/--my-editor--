@@ -186,7 +186,7 @@ export const DEFAULT_CODE: Record<Language, string> = {
   python: `# Python - Hello World
 # Run with Ctrl+Enter
 
-print("Hello, World!")
+print("Hello from python!")
 `,
   cpp: `// C++ - Hello World
 // Run with Ctrl+Enter
@@ -194,7 +194,7 @@ print("Hello, World!")
 #include <iostream>
 
 int main() {
-    std::cout << "Hello, World!" << std::endl;
+    std::cout << "Hello from C++!" << std::endl;
     return 0;
 }
 `,
@@ -204,7 +204,7 @@ int main() {
 
 public class Main {
     public static void main(String[] args) {
-        System.out.println("Hello, World!");
+        System.out.println("Hello from Java!");
     }
 }
 `,
@@ -216,13 +216,13 @@ package main
 import "fmt"
 
 func main() {
-    fmt.Println("Hello, World!")
+    fmt.Println("Hello from Go!")
 }
 `,
   javascript: `// JavaScript - Hello World
 // Run with Ctrl+Enter
 
-console.log("Hello, World!");
+console.log("Hello from JavaScript!");
 `,
   text: ``,  // Empty for plain text files
 };
