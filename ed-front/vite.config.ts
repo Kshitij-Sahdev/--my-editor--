@@ -11,7 +11,8 @@ export default defineConfig({
       "@codemirror/lang-python",
       "@codemirror/lang-javascript",
       "@codemirror/lang-cpp",
-      "@codemirror/lang-java"
+      "@codemirror/lang-java",
+      "@codemirror/highlight"
     ]
   }
 });

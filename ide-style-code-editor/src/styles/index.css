@@ -1,0 +1,453 @@
+/**
+ * index.css - Global styles and animations
+ * 
+ * Uses TailwindCSS v4 with custom theme tokens for the dark IDE theme.
+ * Includes CodeMirror overrides, custom scrollbars, and microinteractions.
+ */
+
+@import "tailwindcss";
+
+/* =============================================================================
+   FONTS - JetBrains Mono (nerd font style) for code, Inter for UI
+   ============================================================================= */
+
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("https://fonts.gstatic.com/s/jetbrainsmono/v18/tDbY2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKxjPVmUsaaDhw.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("https://fonts.gstatic.com/s/jetbrainsmono/v18/tDbY2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKxjPVmUsaaDhw.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Inter";
+  src: url("https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hjp-Ek-_EeA.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Inter";
+  src: url("https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuI6fAZ9hjp-Ek-_EeA.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Inter";
+  src: url("https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuGKYAZ9hjp-Ek-_EeA.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* =============================================================================
+   THEME TOKENS - Dark IDE color palette
+   ============================================================================= */
+
+@theme inline {
+  /* Typography */
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", "SF Mono", "Consolas", monospace;
+  
+  /* Background colors (dark to light) */
+  --color-bg: #0a0a0c;
+  --color-surface: #111114;
+  --color-surface-2: #18181c;
+  --color-surface-hover: #222228;
+  
+  /* Border colors */
+  --color-border: #2a2a32;
+  --color-border-subtle: #1c1c22;
+  
+  /* Text colors */
+  --color-text: #fafafa;
+  --color-text-secondary: #a8a8b3;
+  --color-text-muted: #5c5c6a;
+  
+  /* Accent colors (emerald green) */
+  --color-accent: #10b981;
+  --color-accent-hover: #059669;
+  --color-accent-subtle: rgba(16, 185, 129, 0.12);
+  
+  /* Semantic colors */
+  --color-error: #f87171;
+  --color-error-subtle: rgba(248, 113, 113, 0.12);
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
+  --color-warning-subtle: rgba(251, 191, 36, 0.12);
+}
+
+/* =============================================================================
+   RESET & BASE STYLES
+   ============================================================================= */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--color-bg);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* =============================================================================
+   RESIZABLE PANEL HANDLES
+   ============================================================================= */
+
+.resizer {
+  background: transparent;
+  transition: background 0.2s ease;
+  position: relative;
+}
+
+.resizer::after {
+  content: "";
+  position: absolute;
+  background: var(--color-accent);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.resizer:hover::after,
+.resizer:active::after {
+  opacity: 1;
+}
+
+.resizer-x {
+  cursor: col-resize;
+  width: 6px;
+}
+
+.resizer-x::after {
+  top: 0;
+  bottom: 0;
+  left: 2px;
+  width: 2px;
+}
+
+.resizer-y {
+  cursor: row-resize;
+  height: 6px;
+}
+
+.resizer-y::after {
+  left: 0;
+  right: 0;
+  top: 2px;
+  height: 2px;
+}
+
+/* =============================================================================
+   CUSTOM SCROLLBARS
+   ============================================================================= */
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* =============================================================================
+   CODEMIRROR EDITOR OVERRIDES
+   ============================================================================= */
+
+.cm-editor {
+  height: 100% !important;
+  font-size: 13px !important;
+  background: transparent !important;
+}
+
+.cm-scroller {
+  font-family: var(--font-mono) !important;
+  line-height: 1.7 !important;
+  overflow: auto !important;
+  padding: 16px 0 !important;
+}
+
+.cm-content {
+  padding: 0 20px !important;
+}
+
+.cm-gutters {
+  background: var(--color-surface) !important;
+  border-right: 1px solid var(--color-border-subtle) !important;
+  color: var(--color-text-muted) !important;
+  padding-left: 8px !important;
+}
+
+.cm-lineNumbers .cm-gutterElement {
+  padding: 0 16px 0 8px !important;
+  min-width: 48px !important;
+}
+
+.cm-activeLineGutter {
+  background: var(--color-surface-hover) !important;
+  color: var(--color-text-secondary) !important;
+}
+
+.cm-activeLine {
+  background: rgba(255, 255, 255, 0.03) !important;
+}
+
+.cm-cursor {
+  border-left: 2px solid var(--color-accent) !important;
+  animation: cursor-blink 1s step-end infinite;
+}
+
+.cm-selectionBackground {
+  background: var(--color-accent-subtle) !important;
+}
+
+.cm-focused .cm-selectionBackground {
+  background: rgba(16, 185, 129, 0.2) !important;
+}
+
+.cm-matchingBracket {
+  background: var(--color-accent-subtle) !important;
+  outline: 1px solid var(--color-accent) !important;
+}
+
+/* =============================================================================
+   SELECTION HIGHLIGHT
+   ============================================================================= */
+
+::selection {
+  background: var(--color-accent-subtle);
+}
+
+/* =============================================================================
+   ANIMATIONS & KEYFRAMES
+   ============================================================================= */
+
+/* Cursor blink for CodeMirror */
+@keyframes cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* Spinner rotation */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin {
+  animation: spin 0.7s linear infinite;
+}
+
+/* Pulse for loading states */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Fade in animation */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
+}
+
+/* Slide down animation (for dropdowns, panels) */
+@keyframes slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-down {
+  animation: slide-down 0.2s ease-out;
+}
+
+/* Slide up animation (for output panel) */
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.25s ease-out;
+}
+
+/* Scale in animation (for buttons, badges) */
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-scale-in {
+  animation: scale-in 0.15s ease-out;
+}
+
+/* Bounce animation (for success states) */
+@keyframes bounce-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-bounce-in {
+  animation: bounce-in 0.4s ease-out;
+}
+
+/* Shake animation (for errors) */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
+  20%, 40%, 60%, 80% { transform: translateX(2px); }
+}
+
+.animate-shake {
+  animation: shake 0.5s ease-out;
+}
+
+/* Ping animation (for notifications) */
+@keyframes ping {
+  75%, 100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+.animate-ping {
+  animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+/* Glow animation (for active states) */
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+  }
+}
+
+.animate-glow {
+  animation: glow 2s ease-in-out infinite;
+}
+
+/* =============================================================================
+   TRANSITION UTILITIES
+   ============================================================================= */
+
+.transition-fast {
+  transition: all 0.1s ease;
+}
+
+.transition-normal {
+  transition: all 0.2s ease;
+}
+
+.transition-slow {
+  transition: all 0.3s ease;
+}
+
+/* Button hover lift effect */
+.hover-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-1px);
+}
+
+.hover-lift:active {
+  transform: translateY(0);
+}
+
+/* =============================================================================
+   FOCUS STATES
+   ============================================================================= */
+
+.focus-ring:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-accent);
+}
+
+.focus-ring:focus:not(:focus-visible) {
+  box-shadow: none;
+}
+
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-accent);
+}
