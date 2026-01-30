@@ -125,7 +125,22 @@ body {
 }
 
 /* =============================================================================
-   RESIZABLE PANEL HANDLES
+   AUTO-HIDING OVERLAY PANELS
+   ============================================================================= */
+
+/* Panel backdrop blur effect */
+.sidebar-container,
+.output-container {
+  backdrop-filter: blur(12px);
+}
+
+.sidebar-container > div,
+.output-container > div {
+  background: rgba(5, 5, 5, 0.98) !important;
+}
+
+/* =============================================================================
+   RESIZABLE PANEL HANDLES (kept for reference but not actively used)
    ============================================================================= */
 
 .resizer {

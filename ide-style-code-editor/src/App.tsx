@@ -19,7 +19,6 @@ import Header from "./components/Header";
 import Sidebar from "./components/Sidebar";
 import Editor from "./components/Editor";
 import Output from "./components/Output";
-import Resizer from "./components/Resizer";
 import type { AppState, FileItem, Commit, Language, RunOutput } from "./types";
 import {
   loadState,
@@ -34,17 +33,11 @@ import {
 // LAYOUT CONSTRAINTS
 // =============================================================================
 
-/** Minimum width for the sidebar panel in pixels */
-const MIN_SIDEBAR_WIDTH = 200;
+/** Default width for the sidebar panel in pixels */
+const SIDEBAR_WIDTH = 280;
 
-/** Maximum width for the sidebar panel in pixels */
-const MAX_SIDEBAR_WIDTH = 400;
-
-/** Minimum height for the output panel in pixels */
-const MIN_OUTPUT_HEIGHT = 100;
-
-/** Maximum height for the output panel in pixels */
-const MAX_OUTPUT_HEIGHT = 400;
+/** Default height for the output panel in pixels */
+const OUTPUT_HEIGHT = 250;
 
 /**
  * Go backend URL for code execution.
@@ -82,6 +75,18 @@ export default function App() {
    * Used to determine if there are uncommitted changes.
    */
   const [savedContent, setSavedContent] = useState<string>("");
+
+  /** Whether the sidebar is pinned open */
+  const [sidebarPinned, setSidebarPinned] = useState(false);
+
+  /** Whether the sidebar is being hovered */
+  const [sidebarHovered, setSidebarHovered] = useState(false);
+
+  /** Whether the output panel is pinned open */
+  const [outputPinned, setOutputPinned] = useState(false);
+
+  /** Whether the output panel is being hovered */
+  const [outputHovered, setOutputHovered] = useState(false);
 
   /**
    * Ref to track current editor content without triggering re-renders.
@@ -343,40 +348,6 @@ export default function App() {
   }, []);
 
   // ---------------------------------------------------------------------------
-  // LAYOUT OPERATIONS
-  // ---------------------------------------------------------------------------
-
-  /**
-   * Handle sidebar width changes from the resizer.
-   * Clamps the value within min/max bounds.
-   */
-  const handleSidebarResize = useCallback((delta: number) => {
-    setState((prev) => {
-      if (!prev) return prev;
-      const newWidth = Math.min(
-        MAX_SIDEBAR_WIDTH,
-        Math.max(MIN_SIDEBAR_WIDTH, prev.sidebarWidth + delta)
-      );
-      return { ...prev, sidebarWidth: newWidth };
-    });
-  }, []);
-
-  /**
-   * Handle output panel height changes from the resizer.
-   * Note: delta is negated because dragging up should increase height.
-   */
-  const handleOutputResize = useCallback((delta: number) => {
-    setState((prev) => {
-      if (!prev) return prev;
-      const newHeight = Math.min(
-        MAX_OUTPUT_HEIGHT,
-        Math.max(MIN_OUTPUT_HEIGHT, prev.outputHeight - delta)
-      );
-      return { ...prev, outputHeight: newHeight };
-    });
-  }, []);
-
-  // ---------------------------------------------------------------------------
   // CODE EXECUTION
   // ---------------------------------------------------------------------------
 
@@ -446,11 +417,14 @@ export default function App() {
   }
 
   // ---------------------------------------------------------------------------
-  // RENDER - Update Sidebar to use editorContent
+  // RENDER
   // ---------------------------------------------------------------------------
 
+  const sidebarVisible = sidebarPinned || sidebarHovered;
+  const outputVisible = outputPinned || outputHovered;
+
   return (
-    <div className="flex flex-col h-screen w-screen bg-[var(--color-bg)] animate-fade-in">
+    <div className="flex flex-col h-screen w-screen bg-[var(--color-bg)] animate-fade-in overflow-hidden">
       {/* Top header with logo and run button */}
       <Header
         activeFile={activeFile || null}
@@ -459,34 +433,9 @@ export default function App() {
       />
 
       {/* Main content area */}
-      <div className="flex-1 flex min-h-0 overflow-hidden">
-        {/* Left sidebar (file tree + version control) */}
-        <div
-          style={{ width: state.sidebarWidth }}
-          className="shrink-0 border-r border-[var(--color-border)]"
-        >
-          <Sidebar
-            files={state.files}
-            commits={state.commits}
-            activeFileId={state.activeFileId}
-            activeFile={activeFile || null}
-            currentContent={editorContent}
-            savedContent={savedContent}
-            onSelectFile={handleSelectFile}
-            onCreateFile={handleCreateFile}
-            onCreateFolder={handleCreateFolder}
-            onDeleteItem={handleDeleteItem}
-            onToggleFolder={handleToggleFolder}
-            onCommit={handleCommit}
-            onRestore={handleRestore}
-          />
-        </div>
-
-        {/* Sidebar resize handle */}
-        <Resizer direction="horizontal" onResize={handleSidebarResize} />
-
-        {/* Editor area */}
-        <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 relative min-h-0 overflow-hidden">
+        {/* Editor area - takes full space */}
+        <div className="absolute inset-0">
           {activeFile ? (
             <Editor
               key={activeFile.id}
@@ -501,9 +450,9 @@ export default function App() {
             />
           ) : (
             // Empty state when no file is selected
-            <div className="flex-1 flex items-center justify-center bg-[var(--color-surface)]">
+            <div className="h-full flex items-center justify-center bg-[var(--color-bg)]">
               <div className="text-center animate-fade-in">
-                <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-[var(--color-surface-2)] flex items-center justify-center transition-transform hover:scale-105">
+                <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-[var(--color-surface)] flex items-center justify-center transition-transform hover:scale-105 border border-[var(--color-border)]">
                   <span className="text-4xl text-[var(--color-text-muted)]">
                     +
                   </span>
@@ -512,29 +461,114 @@ export default function App() {
                   No file selected
                 </p>
                 <p className="text-sm text-[var(--color-text-muted)]">
-                  Create or select a file from the sidebar
+                  Hover left edge for files
                 </p>
               </div>
             </div>
           )}
+        </div>
 
-          {/* Output panel (shown after running code) */}
-          {output && (
-            <>
-              <Resizer direction="vertical" onResize={handleOutputResize} />
-              <div
-                style={{ height: state.outputHeight }}
-                className="shrink-0 animate-slide-up"
-              >
-                <Output
-                  stdout={output.stdout}
-                  stderr={output.stderr}
-                  onClear={clearOutput}
-                />
-              </div>
-            </>
+        {/* Sidebar hover trigger zone - always present on left edge */}
+        <div 
+          className="absolute left-0 top-0 bottom-0 w-5 z-40"
+          onMouseEnter={() => setSidebarHovered(true)}
+        >
+          {/* Visual indicator - only show when sidebar is hidden */}
+          {!sidebarVisible && (
+            <div className="absolute left-1 top-1/2 -translate-y-1/2 w-1 h-20 bg-gradient-to-b from-transparent via-[var(--color-accent)] to-transparent rounded-full opacity-50 animate-pulse" />
           )}
         </div>
+
+        {/* Left sidebar panel */}
+        <div 
+          className={`sidebar-container absolute left-0 top-0 bottom-0 z-30 transition-transform duration-300 ease-out ${
+            sidebarVisible ? 'translate-x-0' : '-translate-x-full'
+          }`}
+          style={{ width: SIDEBAR_WIDTH }}
+          onMouseEnter={() => setSidebarHovered(true)}
+          onMouseLeave={() => setSidebarHovered(false)}
+        >
+          <div className="h-full bg-[var(--color-surface)] border-r border-[var(--color-border)] shadow-2xl shadow-black/80 flex flex-col relative">
+            {/* Pin button */}
+            <button
+              onClick={() => setSidebarPinned(!sidebarPinned)}
+              className={`absolute top-3 right-3 z-10 w-8 h-8 rounded-lg flex items-center justify-center transition-all cursor-pointer ${
+                sidebarPinned 
+                  ? 'bg-[var(--color-accent)] text-white shadow-lg shadow-[var(--color-accent)]/30' 
+                  : 'bg-[var(--color-surface-2)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]'
+              }`}
+              title={sidebarPinned ? 'Unpin sidebar' : 'Pin sidebar'}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 17v5M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z" />
+              </svg>
+            </button>
+            
+            <Sidebar
+              files={state.files}
+              commits={state.commits}
+              activeFileId={state.activeFileId}
+              activeFile={activeFile || null}
+              currentContent={editorContent}
+              savedContent={savedContent}
+              onSelectFile={handleSelectFile}
+              onCreateFile={handleCreateFile}
+              onCreateFolder={handleCreateFolder}
+              onDeleteItem={handleDeleteItem}
+              onToggleFolder={handleToggleFolder}
+              onCommit={handleCommit}
+              onRestore={handleRestore}
+            />
+          </div>
+        </div>
+
+        {/* Output hover trigger zone - always present at bottom edge when output exists */}
+        {output && (
+          <div 
+            className="absolute left-0 right-0 bottom-0 h-5 z-40"
+            onMouseEnter={() => setOutputHovered(true)}
+          >
+            {/* Visual indicator - only show when output is hidden */}
+            {!outputVisible && (
+              <div className="absolute bottom-1 left-1/2 -translate-x-1/2 h-1 w-20 bg-gradient-to-r from-transparent via-[var(--color-accent)] to-transparent rounded-full opacity-50 animate-pulse" />
+            )}
+          </div>
+        )}
+
+        {/* Output panel */}
+        {output && (
+          <div 
+            className={`output-container absolute left-0 right-0 bottom-0 z-30 transition-transform duration-300 ease-out ${
+              outputVisible ? 'translate-y-0' : 'translate-y-full'
+            }`}
+            style={{ height: OUTPUT_HEIGHT }}
+            onMouseEnter={() => setOutputHovered(true)}
+            onMouseLeave={() => setOutputHovered(false)}
+          >
+            <div className="h-full bg-[var(--color-surface)] border-t border-[var(--color-border)] shadow-2xl shadow-black/80 flex flex-col relative">
+              {/* Pin button */}
+              <button
+                onClick={() => setOutputPinned(!outputPinned)}
+                className={`absolute top-3 right-12 z-10 w-8 h-8 rounded-lg flex items-center justify-center transition-all cursor-pointer ${
+                  outputPinned 
+                    ? 'bg-[var(--color-accent)] text-white shadow-lg shadow-[var(--color-accent)]/30' 
+                    : 'bg-[var(--color-surface-2)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]'
+                }`}
+                title={outputPinned ? 'Unpin output' : 'Pin output'}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 17v5M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z" />
+                </svg>
+              </button>
+              
+              <Output
+                stdout={output.stdout}
+                stderr={output.stderr}
+                onClear={clearOutput}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
