@@ -31,6 +31,8 @@ interface SidebarProps {
   activeFile: FileItem | null;
   /** Current content in the editor (for change detection) */
   currentContent: string;
+  /** Content at last commit or when file was loaded (baseline for change detection) */
+  savedContent: string;
   /** Callback when a file is selected */
   onSelectFile: (id: string) => void;
   /** Callback to create a new file */
@@ -60,6 +62,7 @@ export default function Sidebar({
   activeFileId,
   activeFile,
   currentContent,
+  savedContent,
   onSelectFile,
   onCreateFile,
   onCreateFolder,
@@ -120,6 +123,7 @@ export default function Sidebar({
         </button>
       </div>
 
+
       {/* Tab content */}
       <div className="flex-1 overflow-hidden">
         {activeTab === "files" ? (
@@ -137,6 +141,7 @@ export default function Sidebar({
             commits={commits}
             activeFile={activeFile}
             currentContent={currentContent}
+            savedContent={savedContent}
             onCommit={onCommit}
             onRestore={onRestore}
           />

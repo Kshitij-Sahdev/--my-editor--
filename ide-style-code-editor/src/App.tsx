@@ -71,9 +71,21 @@ export default function App() {
   /** Whether code is currently being executed */
   const [isRunning, setIsRunning] = useState(false);
 
+  /** 
+   * Track current editor content AS STATE so components re-render.
+   * This replaces currentContentRef for passing to child components.
+   */
+  const [editorContent, setEditorContent] = useState<string>("");
+
+  /**
+   * Track the "saved" content - the content at the last commit or when the file was loaded.
+   * Used to determine if there are uncommitted changes.
+   */
+  const [savedContent, setSavedContent] = useState<string>("");
+
   /**
    * Ref to track current editor content without triggering re-renders.
-   * This is updated by the Editor component on every keystroke.
+   * Still used internally for immediate access (e.g., in runCode).
    */
   const currentContentRef = useRef<string>("");
 
@@ -96,6 +108,11 @@ export default function App() {
 
     if (activeFile) {
       currentContentRef.current = activeFile.content;
+      setEditorContent(activeFile.content);
+      
+      // Set saved content to the latest commit or original file content
+      const fileCommits = getFileCommits(loaded.commits, activeFile.id);
+      setSavedContent(fileCommits.length > 0 ? fileCommits[0].content : activeFile.content);
     }
   }, []);
 
@@ -118,18 +135,11 @@ export default function App() {
     (f) => f.id === state.activeFileId && f.type === "file"
   ) as FileItem | undefined;
 
-  /** Commits for the currently selected file */
-  const fileCommits =
-    activeFile && state ? getFileCommits(state.commits, activeFile.id) : [];
-
   /**
    * Whether the current file has uncommitted changes.
-   * Compares current content with the latest commit (or original content).
+   * Compares current content with the saved content.
    */
-  const hasChanges =
-    activeFile && fileCommits.length > 0
-      ? currentContentRef.current !== fileCommits[0].content
-      : activeFile && currentContentRef.current !== activeFile.content;
+  const hasChanges = activeFile && editorContent !== savedContent;
 
   // ---------------------------------------------------------------------------
   // FILE OPERATIONS
@@ -149,6 +159,11 @@ export default function App() {
 
       if (file) {
         currentContentRef.current = file.content;
+        setEditorContent(file.content);
+        
+        // Set saved content to the latest commit or original file content
+        const fileCommits = getFileCommits(prev.commits, file.id);
+        setSavedContent(fileCommits.length > 0 ? fileCommits[0].content : file.content);
       }
 
       return { ...prev, activeFileId: id };
@@ -174,6 +189,9 @@ export default function App() {
 
       // Set content ref to the new file's default code
       currentContentRef.current = newFile.content;
+      setEditorContent(newFile.content);
+      // New file has no commits, so saved content is the original content
+      setSavedContent(newFile.content);
     },
     []
   );
@@ -260,6 +278,7 @@ export default function App() {
    */
   const handleContentChange = useCallback((content: string) => {
     currentContentRef.current = content;
+    setEditorContent(content);  // <-- ADD THIS
 
     setState((prev) => {
       if (!prev || !prev.activeFileId) return prev;
@@ -283,6 +302,9 @@ export default function App() {
    * Saves the current content with the provided message.
    */
   const handleCommit = useCallback((message: string) => {
+    // Update saved content to current content (since we're committing it)
+    setSavedContent(currentContentRef.current);
+    
     setState((prev) => {
       if (!prev || !prev.activeFileId) return prev;
 
@@ -303,6 +325,9 @@ export default function App() {
    */
   const handleRestore = useCallback((commit: Commit) => {
     currentContentRef.current = commit.content;
+    setEditorContent(commit.content);
+    // After restore, this content becomes the new "saved" baseline
+    setSavedContent(commit.content);
 
     setState((prev) => {
       if (!prev) return prev;
@@ -421,7 +446,7 @@ export default function App() {
   }
 
   // ---------------------------------------------------------------------------
-  // RENDER
+  // RENDER - Update Sidebar to use editorContent
   // ---------------------------------------------------------------------------
 
   return (
@@ -445,7 +470,8 @@ export default function App() {
             commits={state.commits}
             activeFileId={state.activeFileId}
             activeFile={activeFile || null}
-            currentContent={currentContentRef.current}
+            currentContent={editorContent}
+            savedContent={savedContent}
             onSelectFile={handleSelectFile}
             onCreateFile={handleCreateFile}
             onCreateFolder={handleCreateFolder}

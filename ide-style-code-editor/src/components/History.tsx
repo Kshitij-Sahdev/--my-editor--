@@ -36,6 +36,8 @@ interface HistoryProps {
   activeFile: FileItem | null;
   /** Current content in the editor */
   currentContent: string;
+  /** Content at last commit or when file was loaded (baseline for change detection) */
+  savedContent: string;
   /** Callback to create a new commit */
   onCommit: (message: string) => void;
   /** Callback to restore content from a commit */
@@ -83,6 +85,7 @@ export default function History({
   commits,
   activeFile,
   currentContent,
+  savedContent,
   onCommit,
   onRestore,
 }: HistoryProps) {
@@ -97,12 +100,9 @@ export default function History({
 
   /**
    * Determine if there are uncommitted changes.
-   * Compares current content with the latest commit (or original content).
+   * Compares current content with the saved content (last commit or original file content).
    */
-  const hasChanges =
-    activeFile && fileCommits.length > 0
-      ? currentContent !== fileCommits[0].content
-      : activeFile && currentContent !== activeFile.content;
+  const hasChanges = activeFile && currentContent !== savedContent;
 
   /**
    * Handle creating a new commit.

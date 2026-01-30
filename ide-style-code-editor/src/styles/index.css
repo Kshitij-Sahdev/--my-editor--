@@ -55,7 +55,7 @@
    THEME TOKENS - Dark IDE color palette
    ============================================================================= */
 
-@theme inline {
+:root {
   /* Typography */
   --font-sans: "Inter", system-ui, -apple-system, sans-serif;
   --font-mono: "JetBrains Mono", "Fira Code", "SF Mono", "Consolas", monospace;
