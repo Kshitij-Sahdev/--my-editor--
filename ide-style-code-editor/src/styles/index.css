@@ -60,32 +60,42 @@
   --font-sans: "Inter", system-ui, -apple-system, sans-serif;
   --font-mono: "JetBrains Mono", "Fira Code", "SF Mono", "Consolas", monospace;
   
-  /* Background colors (dark to light) */
-  --color-bg: #0a0a0c;
-  --color-surface: #111114;
-  --color-surface-2: #18181c;
-  --color-surface-hover: #222228;
+  /* Background colors (AMOLED black) */
+  --color-bg: #000000;
+  --color-surface: #050505;
+  --color-surface-2: #0a0a0a;
+  --color-surface-hover: #141414;
   
   /* Border colors */
-  --color-border: #2a2a32;
-  --color-border-subtle: #1c1c22;
+  --color-border: #1a1a1a;
+  --color-border-subtle: #101010;
   
   /* Text colors */
   --color-text: #fafafa;
   --color-text-secondary: #a8a8b3;
   --color-text-muted: #5c5c6a;
   
-  /* Accent colors (emerald green) */
+  /* Accent colors (emerald green - neon) */
   --color-accent: #10b981;
   --color-accent-hover: #059669;
   --color-accent-subtle: rgba(16, 185, 129, 0.12);
+  --color-accent-glow: rgba(16, 185, 129, 0.6);
+  
+  /* Neon syntax colors */
+  --neon-green: #39ff14;
+  --neon-cyan: #00ffff;
+  --neon-pink: #ff00ff;
+  --neon-yellow: #ffff00;
+  --neon-orange: #ff6600;
+  --neon-purple: #bf00ff;
+  --neon-blue: #00bfff;
   
   /* Semantic colors */
-  --color-error: #f87171;
-  --color-error-subtle: rgba(248, 113, 113, 0.12);
-  --color-success: #34d399;
-  --color-warning: #fbbf24;
-  --color-warning-subtle: rgba(251, 191, 36, 0.12);
+  --color-error: #ff4757;
+  --color-error-subtle: rgba(255, 71, 87, 0.12);
+  --color-success: #2ed573;
+  --color-warning: #ffa502;
+  --color-warning-subtle: rgba(255, 165, 2, 0.12);
 }
 
 /* =============================================================================
@@ -197,7 +207,7 @@ body {
 
 .cm-editor {
   height: 100% !important;
-  font-size: 13px !important;
+  font-size: 14px !important;
   background: transparent !important;
 }
 
@@ -212,6 +222,23 @@ body {
   padding: 0 20px !important;
 }
 
+/* Neon text effect for code */
+.cm-line {
+  text-shadow: 0 0 2px currentColor, 0 0 4px currentColor;
+}
+
+/* Letter pop animation on typing */
+.cm-line span {
+  display: inline-block;
+  animation: none;
+}
+
+/* Trigger pop animation on content changes */
+.cm-editor.cm-focused .cm-line:has(.cm-matchingBracket),
+.cm-editor.cm-focused .cm-activeLine .cm-line span:last-child {
+  animation: letter-pop 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
 .cm-gutters {
   background: var(--color-surface) !important;
   border-right: 1px solid var(--color-border-subtle) !important;
@@ -222,20 +249,24 @@ body {
 .cm-lineNumbers .cm-gutterElement {
   padding: 0 16px 0 8px !important;
   min-width: 48px !important;
+  transition: all 0.15s ease;
 }
 
 .cm-activeLineGutter {
   background: var(--color-surface-hover) !important;
-  color: var(--color-text-secondary) !important;
+  color: var(--color-accent) !important;
+  text-shadow: 0 0 8px var(--color-accent-glow);
 }
 
 .cm-activeLine {
-  background: rgba(255, 255, 255, 0.03) !important;
+  background: rgba(16, 185, 129, 0.05) !important;
+  box-shadow: inset 2px 0 0 var(--color-accent);
 }
 
 .cm-cursor {
   border-left: 2px solid var(--color-accent) !important;
-  animation: cursor-blink 1s step-end infinite;
+  box-shadow: 0 0 8px var(--color-accent-glow), 0 0 16px var(--color-accent-glow);
+  animation: cursor-blink 1s step-end infinite, cursor-glow 2s ease-in-out infinite;
 }
 
 .cm-selectionBackground {
@@ -243,12 +274,61 @@ body {
 }
 
 .cm-focused .cm-selectionBackground {
-  background: rgba(16, 185, 129, 0.2) !important;
+  background: rgba(16, 185, 129, 0.25) !important;
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
 }
 
 .cm-matchingBracket {
   background: var(--color-accent-subtle) !important;
   outline: 1px solid var(--color-accent) !important;
+  box-shadow: 0 0 8px var(--color-accent-glow);
+  animation: bracket-pulse 0.3s ease-out;
+}
+
+/* Syntax highlighting with neon glow */
+.cm-keyword {
+  color: var(--neon-pink) !important;
+  text-shadow: 0 0 4px var(--neon-pink), 0 0 8px var(--neon-pink);
+}
+
+.cm-string, .cm-string2 {
+  color: var(--neon-green) !important;
+  text-shadow: 0 0 4px var(--neon-green), 0 0 8px var(--neon-green);
+}
+
+.cm-number {
+  color: var(--neon-orange) !important;
+  text-shadow: 0 0 4px var(--neon-orange), 0 0 8px var(--neon-orange);
+}
+
+.cm-comment {
+  color: #666 !important;
+  font-style: italic;
+  text-shadow: none;
+}
+
+.cm-variableName {
+  color: var(--neon-cyan) !important;
+  text-shadow: 0 0 3px var(--neon-cyan);
+}
+
+.cm-function, .cm-propertyName {
+  color: var(--neon-blue) !important;
+  text-shadow: 0 0 4px var(--neon-blue), 0 0 8px var(--neon-blue);
+}
+
+.cm-operator {
+  color: var(--neon-yellow) !important;
+  text-shadow: 0 0 3px var(--neon-yellow);
+}
+
+.cm-punctuation {
+  color: #888 !important;
+}
+
+.cm-typeName, .cm-className {
+  color: var(--neon-purple) !important;
+  text-shadow: 0 0 4px var(--neon-purple), 0 0 8px var(--neon-purple);
 }
 
 /* =============================================================================
@@ -267,6 +347,45 @@ body {
 @keyframes cursor-blink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0; }
+}
+
+/* Cursor glow pulse */
+@keyframes cursor-glow {
+  0%, 100% { 
+    box-shadow: 0 0 8px var(--color-accent-glow), 0 0 16px var(--color-accent-glow);
+  }
+  50% { 
+    box-shadow: 0 0 12px var(--color-accent-glow), 0 0 24px var(--color-accent-glow), 0 0 32px var(--color-accent-glow);
+  }
+}
+
+/* Letter pop animation for typing */
+@keyframes letter-pop {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.3);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Bracket pulse animation */
+@keyframes bracket-pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 var(--color-accent-glow);
+  }
+  50% {
+    transform: scale(1.1);
+    box-shadow: 0 0 12px var(--color-accent-glow);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 8px var(--color-accent-glow);
+  }
 }
 
 /* Spinner rotation */
@@ -421,17 +540,40 @@ body {
   transition: all 0.3s ease;
 }
 
-/* Button hover lift effect */
+/* Button hover lift effect with glow */
 .hover-lift {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), 
+              box-shadow 0.2s ease;
 }
 
 .hover-lift:hover {
-  transform: translateY(-1px);
+  transform: translateY(-2px) scale(1.02);
 }
 
 .hover-lift:active {
-  transform: translateY(0);
+  transform: translateY(0) scale(0.98);
+}
+
+/* Neon button glow on hover */
+button:not(:disabled):hover {
+  filter: brightness(1.1);
+}
+
+button:not(:disabled):active {
+  filter: brightness(0.95);
+}
+
+/* Interactive element micro-bounce */
+.micro-bounce {
+  transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.micro-bounce:hover {
+  transform: scale(1.05);
+}
+
+.micro-bounce:active {
+  transform: scale(0.95);
 }
 
 /* =============================================================================
@@ -440,7 +582,7 @@ body {
 
 .focus-ring:focus {
   outline: none;
-  box-shadow: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-accent);
+  box-shadow: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-accent), 0 0 20px var(--color-accent-glow);
 }
 
 .focus-ring:focus:not(:focus-visible) {
@@ -449,5 +591,27 @@ body {
 
 .focus-ring:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-accent);
+  box-shadow: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-accent), 0 0 20px var(--color-accent-glow);
+}
+
+/* Input focus glow */
+input:focus, textarea:focus {
+  box-shadow: 0 0 0 1px var(--color-accent), 0 0 15px rgba(16, 185, 129, 0.3) !important;
+}
+
+/* =============================================================================
+   NEON GLOW UTILITIES
+   ============================================================================= */
+
+.neon-text {
+  text-shadow: 0 0 4px currentColor, 0 0 8px currentColor, 0 0 16px currentColor;
+}
+
+.neon-box {
+  box-shadow: 0 0 10px var(--color-accent-glow), 0 0 20px var(--color-accent-glow), inset 0 0 10px rgba(16, 185, 129, 0.1);
+}
+
+.neon-border {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 5px var(--color-accent-glow), inset 0 0 5px rgba(16, 185, 129, 0.05);
 }

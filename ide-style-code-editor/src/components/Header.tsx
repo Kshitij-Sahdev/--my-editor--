@@ -44,14 +44,14 @@ export default function Header({ activeFile, onRun, isRunning }: HeaderProps) {
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-3">
           {/* Logo icon */}
-          <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-[var(--color-accent-subtle)] transition-transform hover:scale-105">
-            <Terminal size={20} className="text-[var(--color-accent)]" />
+          <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-[var(--color-accent-subtle)] transition-transform hover:scale-110 hover:rotate-3 active:scale-95">
+            <Terminal size={20} className="text-[var(--color-accent)] drop-shadow-[0_0_8px_var(--color-accent)]" />
           </div>
 
           {/* App name and version */}
           <div className="flex flex-col">
-            <span className="font-semibold text-sm text-[var(--color-text)] tracking-tight">
-              CodeRunner
+            <span className="font-bold text-sm text-[var(--color-accent)] tracking-tight font-mono drop-shadow-[0_0_10px_var(--color-accent)]">
+              run()
             </span>
             <span className="text-[10px] text-[var(--color-text-muted)] font-mono">
               v2.0
@@ -66,11 +66,11 @@ export default function Header({ activeFile, onRun, isRunning }: HeaderProps) {
         disabled={isRunning || !canRun}
         className={`
           flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold 
-          cursor-pointer transition-all
+          cursor-pointer transition-all duration-200
           ${
             canRun && !isRunning
-              ? "bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white shadow-lg shadow-[var(--color-accent)]/25 hover:shadow-[var(--color-accent)]/40 hover-lift"
-              : "bg-[var(--color-surface-2)] text-[var(--color-text-muted)] cursor-not-allowed"
+              ? "bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white shadow-[0_0_20px_rgba(16,185,129,0.4)] hover:shadow-[0_0_30px_rgba(16,185,129,0.6)] hover-lift"
+              : "bg-[var(--color-surface-2)] text-[var(--color-text-muted)] cursor-not-allowed opacity-50"
           }
         `}
       >
@@ -78,15 +78,15 @@ export default function Header({ activeFile, onRun, isRunning }: HeaderProps) {
           // Spinning loader while executing
           <span className="w-4 h-4 border-2 border-transparent border-t-white rounded-full animate-spin" />
         ) : (
-          // Play icon
-          <Play size={16} fill="currentColor" />
+          // Play icon with glow
+          <Play size={16} fill="currentColor" className="drop-shadow-[0_0_4px_rgba(255,255,255,0.5)]" />
         )}
-        <span>{isRunning ? "Running..." : "Run Code"}</span>
+        <span className="drop-shadow-[0_0_4px_rgba(255,255,255,0.3)]">{isRunning ? "Running..." : "Run"}</span>
 
         {/* Keyboard shortcut hint */}
         {canRun && !isRunning && (
-          <kbd className="hidden sm:inline-flex items-center gap-0.5 px-2 py-1 bg-white/20 rounded-md text-[10px] font-mono">
-            Ctrl+Enter
+          <kbd className="hidden sm:inline-flex items-center gap-0.5 px-2 py-1 bg-white/20 rounded-md text-[10px] font-mono backdrop-blur-sm">
+            ⌘↵
           </kbd>
         )}
       </button>
