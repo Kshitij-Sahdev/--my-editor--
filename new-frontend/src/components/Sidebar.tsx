@@ -53,6 +53,59 @@ interface SidebarProps {
 type Tab = "files" | "history";
 
 // =============================================================================
+// STYLES
+// =============================================================================
+
+const styles = {
+  container: {
+    display: 'flex',
+    flexDirection: 'column',
+    height: '100%',
+    backgroundColor: 'var(--color-surface)',
+  } as React.CSSProperties,
+  tabBar: {
+    display: 'flex',
+    borderBottom: '1px solid var(--color-border)',
+  } as React.CSSProperties,
+  tab: {
+    flex: 1,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px',
+    padding: '14px 16px',
+    fontSize: '12px',
+    fontWeight: 600,
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    position: 'relative',
+    border: 'none',
+    background: 'none',
+  } as React.CSSProperties,
+  tabActive: {
+    color: 'var(--color-accent)',
+    backgroundColor: 'var(--color-accent-subtle)',
+  } as React.CSSProperties,
+  tabInactive: {
+    color: 'var(--color-text-muted)',
+  } as React.CSSProperties,
+  tabIndicator: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '2px',
+    backgroundColor: 'var(--color-accent)',
+  } as React.CSSProperties,
+  content: {
+    flex: 1,
+    overflow: 'hidden',
+  } as React.CSSProperties,
+};
+
+// =============================================================================
 // COMPONENT
 // =============================================================================
 
@@ -75,57 +128,45 @@ export default function Sidebar({
   const [activeTab, setActiveTab] = useState<Tab>("files");
 
   return (
-    <div className="flex flex-col h-full bg-[var(--color-surface)]">
+    <div style={styles.container}>
       {/* Tab bar */}
-      <div className="flex border-b border-[var(--color-border)]">
+      <div style={styles.tabBar}>
         {/* Files tab */}
         <button
           onClick={() => setActiveTab("files")}
-          className={`
-            flex-1 flex items-center justify-center gap-2 px-4 py-3.5 
-            text-xs font-semibold uppercase tracking-wider cursor-pointer 
-            transition-all relative
-            ${
-              activeTab === "files"
-                ? "text-[var(--color-accent)] bg-[var(--color-accent-subtle)]"
-                : "text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]"
-            }
-          `}
+          style={{
+            ...styles.tab,
+            ...(activeTab === "files" ? styles.tabActive : styles.tabInactive),
+          }}
         >
           <FolderTree size={14} />
           Files
           {/* Active indicator */}
           {activeTab === "files" && (
-            <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--color-accent)]" />
+            <span style={styles.tabIndicator} />
           )}
         </button>
 
         {/* Git/History tab */}
         <button
           onClick={() => setActiveTab("history")}
-          className={`
-            flex-1 flex items-center justify-center gap-2 px-4 py-3.5 
-            text-xs font-semibold uppercase tracking-wider cursor-pointer 
-            transition-all relative
-            ${
-              activeTab === "history"
-                ? "text-[var(--color-accent)] bg-[var(--color-accent-subtle)]"
-                : "text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]"
-            }
-          `}
+          style={{
+            ...styles.tab,
+            ...(activeTab === "history" ? styles.tabActive : styles.tabInactive),
+          }}
         >
           <GitBranch size={14} />
           Git
           {/* Active indicator */}
           {activeTab === "history" && (
-            <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--color-accent)]" />
+            <span style={styles.tabIndicator} />
           )}
         </button>
       </div>
 
 
       {/* Tab content */}
-      <div className="flex-1 overflow-hidden">
+      <div style={styles.content}>
         {activeTab === "files" ? (
           <FileTree
             files={files}

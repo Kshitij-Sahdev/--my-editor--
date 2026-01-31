@@ -1,11 +1,9 @@
 /**
  * index.css - Global styles and animations
  * 
- * Uses TailwindCSS v4 with custom theme tokens for the dark IDE theme.
+ * Pure CSS implementation (no Tailwind) with custom theme tokens for the dark IDE theme.
  * Includes CodeMirror overrides, custom scrollbars, and microinteractions.
  */
-
-@import "tailwindcss";
 
 /* =============================================================================
    FONTS - JetBrains Mono (nerd font style) for code, Inter for UI
@@ -629,4 +627,12 @@ input:focus, textarea:focus {
 .neon-border {
   border-color: var(--color-accent);
   box-shadow: 0 0 5px var(--color-accent-glow), inset 0 0 5px rgba(16, 185, 129, 0.05);
+}
+
+/* =============================================================================
+   RADIX UI SELECT OVERRIDES
+   ============================================================================= */
+
+[data-radix-popper-content-wrapper] {
+  z-index: 50 !important;
 }

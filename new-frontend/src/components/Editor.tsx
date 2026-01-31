@@ -61,6 +61,198 @@ interface EditorProps {
 }
 
 // =============================================================================
+// STYLES
+// =============================================================================
+
+const styles = {
+  container: {
+    display: 'flex',
+    flexDirection: 'column',
+    flex: 1,
+    minHeight: 0,
+    backgroundColor: 'var(--color-surface)',
+  } as React.CSSProperties,
+  toolbar: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '10px 16px',
+    borderBottom: '1px solid var(--color-border-subtle)',
+    backgroundColor: 'var(--color-surface-2)',
+  } as React.CSSProperties,
+  toolbarLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+  } as React.CSSProperties,
+  fileName: {
+    fontFamily: 'var(--font-mono)',
+    fontSize: '14px',
+    color: 'var(--color-text)',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+    maxWidth: '200px',
+  } as React.CSSProperties,
+  languageBadge: {
+    padding: '4px 10px',
+    fontSize: '10px',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+    borderRadius: '6px',
+    fontWeight: 600,
+    transition: 'all 0.2s',
+  } as React.CSSProperties,
+  runnableBadge: {
+    backgroundColor: 'var(--color-accent-subtle)',
+    color: 'var(--color-accent)',
+  } as React.CSSProperties,
+  nonRunnableBadge: {
+    backgroundColor: 'var(--color-warning-subtle)',
+    color: 'var(--color-warning)',
+  } as React.CSSProperties,
+  warningIndicator: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    color: 'var(--color-warning)',
+  } as React.CSSProperties,
+  warningText: {
+    fontSize: '10px',
+    fontWeight: 500,
+  } as React.CSSProperties,
+  changesIndicator: {
+    position: 'relative',
+  } as React.CSSProperties,
+  changesDot: {
+    display: 'block',
+    width: '10px',
+    height: '10px',
+    borderRadius: '50%',
+    backgroundColor: 'var(--color-warning)',
+  } as React.CSSProperties,
+  changesDotPing: {
+    position: 'absolute',
+    inset: 0,
+    width: '10px',
+    height: '10px',
+    borderRadius: '50%',
+    backgroundColor: 'var(--color-warning)',
+  } as React.CSSProperties,
+  committedBadge: {
+    padding: '2px 8px',
+    fontSize: '10px',
+    fontWeight: 500,
+    color: 'var(--color-success)',
+    backgroundColor: 'rgba(46, 213, 115, 0.1)',
+    borderRadius: '4px',
+  } as React.CSSProperties,
+  toolbarRight: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  } as React.CSSProperties,
+  commitForm: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  } as React.CSSProperties,
+  commitInput: {
+    padding: '6px 12px',
+    width: '256px',
+    backgroundColor: 'var(--color-bg)',
+    border: '1px solid var(--color-border)',
+    borderRadius: '8px',
+    fontSize: '14px',
+    color: 'var(--color-text)',
+    outline: 'none',
+    fontFamily: 'var(--font-mono)',
+    transition: 'border-color 0.2s',
+  } as React.CSSProperties,
+  saveButton: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '6px 12px',
+    backgroundColor: 'var(--color-accent)',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontWeight: 500,
+    color: 'white',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    border: 'none',
+  } as React.CSSProperties,
+  saveButtonDisabled: {
+    opacity: 0.4,
+    cursor: 'not-allowed',
+  } as React.CSSProperties,
+  closeButton: {
+    padding: '6px',
+    color: 'var(--color-text-muted)',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    border: 'none',
+    background: 'none',
+  } as React.CSSProperties,
+  commitButton: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '6px 12px',
+    color: 'var(--color-text-secondary)',
+    borderRadius: '8px',
+    fontSize: '14px',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    border: 'none',
+    background: 'none',
+  } as React.CSSProperties,
+  kbd: {
+    display: 'none',
+    padding: '2px 6px',
+    backgroundColor: 'var(--color-surface)',
+    border: '1px solid var(--color-border)',
+    borderRadius: '4px',
+    fontSize: '10px',
+    fontFamily: 'var(--font-mono)',
+    color: 'var(--color-text-muted)',
+  } as React.CSSProperties,
+  editorContainer: {
+    flex: 1,
+    overflow: 'hidden',
+  } as React.CSSProperties,
+  statusBar: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '8px 16px',
+    borderTop: '1px solid var(--color-border-subtle)',
+    backgroundColor: 'var(--color-surface-2)',
+    fontSize: '10px',
+    color: 'var(--color-text-muted)',
+    fontFamily: 'var(--font-mono)',
+  } as React.CSSProperties,
+  statusBarLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+  } as React.CSSProperties,
+  statusBarRight: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+  } as React.CSSProperties,
+  statusKbd: {
+    padding: '2px 4px',
+    backgroundColor: 'var(--color-surface)',
+    border: '1px solid var(--color-border)',
+    borderRadius: '4px',
+  } as React.CSSProperties,
+};
+
+// =============================================================================
 // LANGUAGE EXTENSIONS
 // =============================================================================
 
@@ -279,58 +471,57 @@ export default function Editor({
   // ---------------------------------------------------------------------------
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 bg-[var(--color-surface)]">
+    <div style={styles.container}>
       {/* Editor toolbar */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-[var(--color-border-subtle)] bg-[var(--color-surface-2)]">
+      <div style={styles.toolbar}>
         {/* Left side: filename + language badge */}
-        <div className="flex items-center gap-3">
-          <span className="font-mono text-sm text-[var(--color-text)] truncate max-w-[200px]">
+        <div style={styles.toolbarLeft}>
+          <span style={styles.fileName}>
             {fileName}
           </span>
 
           {/* Language badge with animation */}
           <span
-            className={`px-2.5 py-1 text-[10px] uppercase tracking-wider rounded-md font-semibold transition-all ${
-              isRunnable
-                ? "bg-[var(--color-accent-subtle)] text-[var(--color-accent)]"
-                : "bg-[var(--color-warning-subtle)] text-[var(--color-warning)]"
-            }`}
+            style={{
+              ...styles.languageBadge,
+              ...(isRunnable ? styles.runnableBadge : styles.nonRunnableBadge),
+            }}
           >
             {LANGUAGE_LABELS[language]}
           </span>
 
           {/* Unsupported language warning */}
           {!isRunnable && (
-            <div className="flex items-center gap-1.5 text-[var(--color-warning)] animate-fade-in">
+            <div style={styles.warningIndicator} className="animate-fade-in">
               <AlertCircle size={12} />
-              <span className="text-[10px] font-medium">Not executable</span>
+              <span style={styles.warningText}>Not executable</span>
             </div>
           )}
 
           {/* Uncommitted changes indicator */}
           {hasChanges && (
-            <div className="relative animate-scale-in">
+            <div style={styles.changesIndicator} className="animate-scale-in">
               <span
-                className="block w-2.5 h-2.5 rounded-full bg-[var(--color-warning)]"
+                style={styles.changesDot}
                 title="Uncommitted changes"
               />
-              <span className="absolute inset-0 w-2.5 h-2.5 rounded-full bg-[var(--color-warning)] animate-ping" />
+              <span style={styles.changesDotPing} className="animate-ping" />
             </div>
           )}
 
           {/* Commit success indicator */}
           {justCommitted && (
-            <span className="px-2 py-0.5 text-[10px] font-medium text-[var(--color-success)] bg-[var(--color-success)]/10 rounded animate-bounce-in">
+            <span style={styles.committedBadge} className="animate-bounce-in">
               Committed!
             </span>
           )}
         </div>
 
         {/* Right side: commit controls */}
-        <div className="flex items-center gap-2">
+        <div style={styles.toolbarRight}>
           {showCommit ? (
             // Commit input form
-            <div className="flex items-center gap-2 animate-slide-down">
+            <div style={styles.commitForm} className="animate-slide-down">
               <input
                 type="text"
                 value={commitMessage}
@@ -340,20 +531,24 @@ export default function Editor({
                   if (e.key === "Escape") setShowCommit(false);
                 }}
                 placeholder="Describe your changes..."
-                className="px-3 py-1.5 w-64 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)] placeholder:text-[var(--color-text-muted)] font-mono transition-colors"
+                style={styles.commitInput}
                 autoFocus
               />
               <button
                 onClick={handleCommit}
                 disabled={!commitMessage.trim() || !hasChanges}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] disabled:opacity-40 disabled:cursor-not-allowed rounded-lg text-sm font-medium text-white cursor-pointer transition-all hover-lift"
+                style={{
+                  ...styles.saveButton,
+                  ...(!commitMessage.trim() || !hasChanges ? styles.saveButtonDisabled : {}),
+                }}
+                className="hover-lift"
               >
                 <Save size={14} />
                 Save
               </button>
               <button
                 onClick={() => setShowCommit(false)}
-                className="p-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-hover)] rounded-lg cursor-pointer transition-colors"
+                style={styles.closeButton}
               >
                 <X size={14} />
               </button>
@@ -362,12 +557,12 @@ export default function Editor({
             // Commit button
             <button
               onClick={() => setShowCommit(true)}
-              className="flex items-center gap-2 px-3 py-1.5 text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-hover)] rounded-lg text-sm cursor-pointer transition-all"
+              style={styles.commitButton}
               title="Commit changes (Ctrl+S)"
             >
               <GitCommit size={14} />
-              <span className="hidden sm:inline">Commit</span>
-              <kbd className="hidden md:inline px-1.5 py-0.5 bg-[var(--color-surface)] border border-[var(--color-border)] rounded text-[10px] font-mono text-[var(--color-text-muted)]">
+              <span>Commit</span>
+              <kbd style={{ ...styles.kbd, display: 'inline' }}>
                 Ctrl+S
               </kbd>
             </button>
@@ -376,23 +571,23 @@ export default function Editor({
       </div>
 
       {/* CodeMirror editor container */}
-      <div ref={containerRef} className="flex-1 overflow-hidden" />
+      <div ref={containerRef} style={styles.editorContainer} />
 
       {/* Status bar */}
-      <div className="flex items-center justify-between px-4 py-2 border-t border-[var(--color-border-subtle)] bg-[var(--color-surface-2)] text-[10px] text-[var(--color-text-muted)] font-mono">
-        <div className="flex items-center gap-4">
+      <div style={styles.statusBar}>
+        <div style={styles.statusBarLeft}>
           <span>{LANGUAGE_LABELS[language]}</span>
           {!isRunnable && (
-            <span className="text-[var(--color-warning)]">
+            <span style={{ color: 'var(--color-warning)' }}>
               Plain text mode - no execution available
             </span>
           )}
         </div>
-        <div className="flex items-center gap-4">
+        <div style={styles.statusBarRight}>
           {isRunnable && (
-            <span className="hidden sm:inline">
+            <span>
               Run:{" "}
-              <kbd className="px-1 py-0.5 bg-[var(--color-surface)] border border-[var(--color-border)] rounded">
+              <kbd style={styles.statusKbd}>
                 Ctrl+Enter
               </kbd>
             </span>

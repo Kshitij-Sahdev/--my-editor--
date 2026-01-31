@@ -47,6 +47,192 @@ const OUTPUT_HEIGHT = 250;
 const API_URL = "http://localhost:8080";
 
 // =============================================================================
+// STYLES
+// =============================================================================
+
+const styles = {
+  loadingContainer: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: '100vh',
+    backgroundColor: 'var(--color-bg)',
+  } as React.CSSProperties,
+  loadingContent: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '16px',
+  } as React.CSSProperties,
+  spinner: {
+    width: '40px',
+    height: '40px',
+    border: '2px solid transparent',
+    borderTopColor: 'var(--color-accent)',
+    borderRadius: '50%',
+  } as React.CSSProperties,
+  loadingText: {
+    fontSize: '14px',
+    color: 'var(--color-text-muted)',
+    fontFamily: 'var(--font-mono)',
+  } as React.CSSProperties,
+  appContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    height: '100vh',
+    width: '100vw',
+    backgroundColor: 'var(--color-bg)',
+    overflow: 'hidden',
+  } as React.CSSProperties,
+  mainContent: {
+    flex: 1,
+    position: 'relative',
+    minHeight: 0,
+    overflow: 'hidden',
+  } as React.CSSProperties,
+  editorArea: {
+    position: 'absolute',
+    inset: 0,
+  } as React.CSSProperties,
+  emptyState: {
+    height: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'var(--color-bg)',
+  } as React.CSSProperties,
+  emptyStateContent: {
+    textAlign: 'center',
+  } as React.CSSProperties,
+  emptyStateIcon: {
+    width: '80px',
+    height: '80px',
+    margin: '0 auto 24px',
+    borderRadius: '16px',
+    backgroundColor: 'var(--color-surface)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'transform 0.2s',
+    border: '1px solid var(--color-border)',
+    fontSize: '32px',
+    color: 'var(--color-text-muted)',
+  } as React.CSSProperties,
+  emptyStateTitle: {
+    fontSize: '18px',
+    fontWeight: 500,
+    color: 'var(--color-text-secondary)',
+    marginBottom: '8px',
+  } as React.CSSProperties,
+  emptyStateSubtitle: {
+    fontSize: '14px',
+    color: 'var(--color-text-muted)',
+  } as React.CSSProperties,
+  sidebarTrigger: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: '20px',
+    zIndex: 40,
+  } as React.CSSProperties,
+  sidebarIndicator: {
+    position: 'absolute',
+    left: '4px',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    width: '4px',
+    height: '80px',
+    background: 'linear-gradient(to bottom, transparent, var(--color-accent), transparent)',
+    borderRadius: '9999px',
+    opacity: 0.5,
+  } as React.CSSProperties,
+  sidebarPanel: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    zIndex: 30,
+    transition: 'transform 0.3s ease-out',
+  } as React.CSSProperties,
+  sidebarInner: {
+    height: '100%',
+    backgroundColor: 'var(--color-surface)',
+    borderRight: '1px solid var(--color-border)',
+    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)',
+    display: 'flex',
+    flexDirection: 'column',
+    position: 'relative',
+  } as React.CSSProperties,
+  pinButton: {
+    position: 'absolute',
+    top: '12px',
+    right: '12px',
+    zIndex: 10,
+    width: '32px',
+    height: '32px',
+    borderRadius: '8px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'all 0.2s',
+    cursor: 'pointer',
+    border: 'none',
+  } as React.CSSProperties,
+  pinButtonActive: {
+    backgroundColor: 'var(--color-accent)',
+    color: 'white',
+    boxShadow: '0 10px 15px -3px rgba(16, 185, 129, 0.3)',
+  } as React.CSSProperties,
+  pinButtonInactive: {
+    backgroundColor: 'var(--color-surface-2)',
+    color: 'var(--color-text-muted)',
+  } as React.CSSProperties,
+  outputTrigger: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: '20px',
+    zIndex: 40,
+  } as React.CSSProperties,
+  outputIndicator: {
+    position: 'absolute',
+    bottom: '4px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    height: '4px',
+    width: '80px',
+    background: 'linear-gradient(to right, transparent, var(--color-accent), transparent)',
+    borderRadius: '9999px',
+    opacity: 0.5,
+  } as React.CSSProperties,
+  outputPanel: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 30,
+    transition: 'transform 0.3s ease-out',
+  } as React.CSSProperties,
+  outputInner: {
+    height: '100%',
+    backgroundColor: 'var(--color-surface)',
+    borderTop: '1px solid var(--color-border)',
+    boxShadow: '0 -25px 50px -12px rgba(0, 0, 0, 0.8)',
+    display: 'flex',
+    flexDirection: 'column',
+    position: 'relative',
+  } as React.CSSProperties,
+  outputPinButton: {
+    position: 'absolute',
+    top: '12px',
+    right: '48px',
+    zIndex: 10,
+  } as React.CSSProperties,
+};
+
+// =============================================================================
 // MAIN COMPONENT
 // =============================================================================
 
@@ -283,7 +469,7 @@ export default function App() {
    */
   const handleContentChange = useCallback((content: string) => {
     currentContentRef.current = content;
-    setEditorContent(content);  // <-- ADD THIS
+    setEditorContent(content);
 
     setState((prev) => {
       if (!prev || !prev.activeFileId) return prev;
@@ -405,10 +591,10 @@ export default function App() {
 
   if (!state) {
     return (
-      <div className="flex items-center justify-center h-screen bg-[var(--color-bg)]">
-        <div className="flex flex-col items-center gap-4 animate-fade-in">
-          <div className="w-10 h-10 border-2 border-transparent border-t-[var(--color-accent)] rounded-full animate-spin" />
-          <span className="text-sm text-[var(--color-text-muted)] font-mono">
+      <div style={styles.loadingContainer}>
+        <div style={styles.loadingContent} className="animate-fade-in">
+          <div style={styles.spinner} className="animate-spin" />
+          <span style={styles.loadingText}>
             Loading editor...
           </span>
         </div>
@@ -424,7 +610,7 @@ export default function App() {
   const outputVisible = outputPinned || outputHovered;
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-[var(--color-bg)] animate-fade-in overflow-hidden">
+    <div style={styles.appContainer} className="animate-fade-in">
       {/* Top header with logo and run button */}
       <Header
         activeFile={activeFile || null}
@@ -433,9 +619,9 @@ export default function App() {
       />
 
       {/* Main content area */}
-      <div className="flex-1 relative min-h-0 overflow-hidden">
+      <div style={styles.mainContent}>
         {/* Editor area - takes full space */}
-        <div className="absolute inset-0">
+        <div style={styles.editorArea}>
           {activeFile ? (
             <Editor
               key={activeFile.id}
@@ -450,17 +636,15 @@ export default function App() {
             />
           ) : (
             // Empty state when no file is selected
-            <div className="h-full flex items-center justify-center bg-[var(--color-bg)]">
-              <div className="text-center animate-fade-in">
-                <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-[var(--color-surface)] flex items-center justify-center transition-transform hover:scale-105 border border-[var(--color-border)]">
-                  <span className="text-4xl text-[var(--color-text-muted)]">
-                    +
-                  </span>
+            <div style={styles.emptyState}>
+              <div style={styles.emptyStateContent} className="animate-fade-in">
+                <div style={styles.emptyStateIcon}>
+                  +
                 </div>
-                <p className="text-lg font-medium text-[var(--color-text-secondary)] mb-2">
+                <p style={styles.emptyStateTitle}>
                   No file selected
                 </p>
-                <p className="text-sm text-[var(--color-text-muted)]">
+                <p style={styles.emptyStateSubtitle}>
                   Hover left edge for files
                 </p>
               </div>
@@ -470,33 +654,34 @@ export default function App() {
 
         {/* Sidebar hover trigger zone - always present on left edge */}
         <div 
-          className="absolute left-0 top-0 bottom-0 w-5 z-40"
+          style={styles.sidebarTrigger}
           onMouseEnter={() => setSidebarHovered(true)}
         >
           {/* Visual indicator - only show when sidebar is hidden */}
           {!sidebarVisible && (
-            <div className="absolute left-1 top-1/2 -translate-y-1/2 w-1 h-20 bg-gradient-to-b from-transparent via-[var(--color-accent)] to-transparent rounded-full opacity-50 animate-pulse" />
+            <div style={styles.sidebarIndicator} className="animate-pulse" />
           )}
         </div>
 
         {/* Left sidebar panel */}
         <div 
-          className={`sidebar-container absolute left-0 top-0 bottom-0 z-30 transition-transform duration-300 ease-out ${
-            sidebarVisible ? 'translate-x-0' : '-translate-x-full'
-          }`}
-          style={{ width: SIDEBAR_WIDTH }}
+          className="sidebar-container"
+          style={{
+            ...styles.sidebarPanel,
+            width: SIDEBAR_WIDTH,
+            transform: sidebarVisible ? 'translateX(0)' : 'translateX(-100%)',
+          }}
           onMouseEnter={() => setSidebarHovered(true)}
           onMouseLeave={() => setSidebarHovered(false)}
         >
-          <div className="h-full bg-[var(--color-surface)] border-r border-[var(--color-border)] shadow-2xl shadow-black/80 flex flex-col relative">
+          <div style={styles.sidebarInner}>
             {/* Pin button */}
             <button
               onClick={() => setSidebarPinned(!sidebarPinned)}
-              className={`absolute top-3 right-3 z-10 w-8 h-8 rounded-lg flex items-center justify-center transition-all cursor-pointer ${
-                sidebarPinned 
-                  ? 'bg-[var(--color-accent)] text-white shadow-lg shadow-[var(--color-accent)]/30' 
-                  : 'bg-[var(--color-surface-2)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]'
-              }`}
+              style={{
+                ...styles.pinButton,
+                ...(sidebarPinned ? styles.pinButtonActive : styles.pinButtonInactive),
+              }}
               title={sidebarPinned ? 'Unpin sidebar' : 'Pin sidebar'}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -525,12 +710,12 @@ export default function App() {
         {/* Output hover trigger zone - always present at bottom edge when output exists */}
         {output && (
           <div 
-            className="absolute left-0 right-0 bottom-0 h-5 z-40"
+            style={styles.outputTrigger}
             onMouseEnter={() => setOutputHovered(true)}
           >
             {/* Visual indicator - only show when output is hidden */}
             {!outputVisible && (
-              <div className="absolute bottom-1 left-1/2 -translate-x-1/2 h-1 w-20 bg-gradient-to-r from-transparent via-[var(--color-accent)] to-transparent rounded-full opacity-50 animate-pulse" />
+              <div style={styles.outputIndicator} className="animate-pulse" />
             )}
           </div>
         )}
@@ -538,22 +723,24 @@ export default function App() {
         {/* Output panel */}
         {output && (
           <div 
-            className={`output-container absolute left-0 right-0 bottom-0 z-30 transition-transform duration-300 ease-out ${
-              outputVisible ? 'translate-y-0' : 'translate-y-full'
-            }`}
-            style={{ height: OUTPUT_HEIGHT }}
+            className="output-container"
+            style={{
+              ...styles.outputPanel,
+              height: OUTPUT_HEIGHT,
+              transform: outputVisible ? 'translateY(0)' : 'translateY(100%)',
+            }}
             onMouseEnter={() => setOutputHovered(true)}
             onMouseLeave={() => setOutputHovered(false)}
           >
-            <div className="h-full bg-[var(--color-surface)] border-t border-[var(--color-border)] shadow-2xl shadow-black/80 flex flex-col relative">
+            <div style={styles.outputInner}>
               {/* Pin button */}
               <button
                 onClick={() => setOutputPinned(!outputPinned)}
-                className={`absolute top-3 right-12 z-10 w-8 h-8 rounded-lg flex items-center justify-center transition-all cursor-pointer ${
-                  outputPinned 
-                    ? 'bg-[var(--color-accent)] text-white shadow-lg shadow-[var(--color-accent)]/30' 
-                    : 'bg-[var(--color-surface-2)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]'
-                }`}
+                style={{
+                  ...styles.pinButton,
+                  ...styles.outputPinButton,
+                  ...(outputPinned ? styles.pinButtonActive : styles.pinButtonInactive),
+                }}
                 title={outputPinned ? 'Unpin output' : 'Pin output'}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

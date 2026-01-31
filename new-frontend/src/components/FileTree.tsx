@@ -59,6 +59,150 @@ interface TreeItemProps extends Omit<FileTreeProps, "files"> {
 }
 
 // =============================================================================
+// STYLES
+// =============================================================================
+
+const styles = {
+  container: {
+    display: 'flex',
+    flexDirection: 'column',
+    height: '100%',
+  } as React.CSSProperties,
+  header: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '12px 16px',
+    borderBottom: '1px solid var(--color-border-subtle)',
+  } as React.CSSProperties,
+  headerTitle: {
+    fontSize: '12px',
+    fontWeight: 600,
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+    color: 'var(--color-text-muted)',
+  } as React.CSSProperties,
+  headerButtons: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+  } as React.CSSProperties,
+  headerButton: {
+    padding: '6px',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    color: 'var(--color-text-muted)',
+    transition: 'all 0.2s',
+    border: 'none',
+    background: 'none',
+  } as React.CSSProperties,
+  content: {
+    flex: 1,
+    overflow: 'auto',
+    padding: '8px 0',
+  } as React.CSSProperties,
+  createInput: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '8px 16px',
+  } as React.CSSProperties,
+  input: {
+    flex: 1,
+    padding: '6px 12px',
+    backgroundColor: 'var(--color-bg)',
+    border: '1px solid var(--color-accent)',
+    borderRadius: '8px',
+    fontSize: '14px',
+    color: 'var(--color-text)',
+    outline: 'none',
+    fontFamily: 'var(--font-mono)',
+    transition: 'border-color 0.2s',
+  } as React.CSSProperties,
+  emptyState: {
+    padding: '48px 16px',
+    textAlign: 'center',
+  } as React.CSSProperties,
+  emptyText: {
+    color: 'var(--color-text-muted)',
+    fontSize: '14px',
+    marginBottom: '4px',
+  } as React.CSSProperties,
+  emptySubtext: {
+    color: 'var(--color-text-muted)',
+    fontSize: '12px',
+  } as React.CSSProperties,
+  itemRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '8px 12px',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+  } as React.CSSProperties,
+  itemRowActive: {
+    backgroundColor: 'var(--color-accent-subtle)',
+    color: 'var(--color-accent)',
+  } as React.CSSProperties,
+  itemRowInactive: {
+    color: 'var(--color-text-secondary)',
+  } as React.CSSProperties,
+  chevron: {
+    width: '16px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  } as React.CSSProperties,
+  chevronIcon: {
+    color: 'var(--color-text-muted)',
+    transition: 'transform 0.2s',
+  } as React.CSSProperties,
+  itemName: {
+    fontSize: '14px',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+    flex: 1,
+    fontFamily: 'var(--font-mono)',
+  } as React.CSSProperties,
+  actions: {
+    display: 'none',
+    alignItems: 'center',
+    gap: '4px',
+  } as React.CSSProperties,
+  actionButton: {
+    padding: '4px',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    color: 'var(--color-text-muted)',
+    transition: 'all 0.2s',
+    border: 'none',
+    background: 'none',
+  } as React.CSSProperties,
+  deleteButton: {
+    padding: '4px',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    color: 'var(--color-text-muted)',
+    transition: 'all 0.2s',
+    border: 'none',
+    background: 'none',
+  } as React.CSSProperties,
+  folderIcon: {
+    color: 'var(--color-warning)',
+    flexShrink: 0,
+  } as React.CSSProperties,
+  fileIconCode: {
+    color: 'var(--color-accent)',
+    flexShrink: 0,
+  } as React.CSSProperties,
+  fileIconText: {
+    color: 'var(--color-text-muted)',
+    flexShrink: 0,
+  } as React.CSSProperties,
+};
+
+// =============================================================================
 // HELPER FUNCTIONS
 // =============================================================================
 
@@ -68,16 +212,9 @@ interface TreeItemProps extends Omit<FileTreeProps, "files"> {
  */
 function getFileIcon(language: string) {
   if (language === "text") {
-    return (
-      <FileText
-        size={14}
-        className="text-[var(--color-text-muted)] shrink-0"
-      />
-    );
+    return <FileText size={14} style={styles.fileIconText} />;
   }
-  return (
-    <FileCode size={14} className="text-[var(--color-accent)] shrink-0" />
-  );
+  return <FileCode size={14} style={styles.fileIconCode} />;
 }
 
 // =============================================================================
@@ -104,6 +241,9 @@ function TreeItem({
 
   /** Name input for the new item */
   const [newName, setNewName] = useState("");
+
+  /** Whether this item is hovered */
+  const [isHovered, setIsHovered] = useState(false);
 
   // Derived values
   const isFolder = item.type === "folder";
@@ -137,15 +277,13 @@ function TreeItem({
     <div>
       {/* Item row */}
       <div
-        className={`
-          group flex items-center gap-2 px-3 py-2 cursor-pointer transition-all
-          ${
-            isActive
-              ? "bg-[var(--color-accent-subtle)] text-[var(--color-accent)]"
-              : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)]"
-          }
-        `}
-        style={{ paddingLeft: `${depth * 16 + 12}px` }}
+        style={{
+          ...styles.itemRow,
+          ...(isActive ? styles.itemRowActive : styles.itemRowInactive),
+          paddingLeft: `${depth * 16 + 12}px`,
+        }}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
         onClick={() => {
           if (isFolder) {
             onToggleFolder(item.id);
@@ -157,45 +295,33 @@ function TreeItem({
         {/* Expand/collapse chevron for folders, spacer for files */}
         {isFolder ? (
           <>
-            <span className="w-4 flex items-center justify-center">
+            <span style={styles.chevron}>
               {item.isOpen ? (
-                <ChevronDown
-                  size={14}
-                  className="text-[var(--color-text-muted)] transition-transform"
-                />
+                <ChevronDown size={14} style={styles.chevronIcon} />
               ) : (
-                <ChevronRight
-                  size={14}
-                  className="text-[var(--color-text-muted)] transition-transform"
-                />
+                <ChevronRight size={14} style={styles.chevronIcon} />
               )}
             </span>
             {/* Folder icon (open vs closed) */}
             {item.isOpen ? (
-              <FolderOpen
-                size={14}
-                className="text-[var(--color-warning)] shrink-0"
-              />
+              <FolderOpen size={14} style={styles.folderIcon} />
             ) : (
-              <Folder
-                size={14}
-                className="text-[var(--color-warning)] shrink-0"
-              />
+              <Folder size={14} style={styles.folderIcon} />
             )}
           </>
         ) : (
           <>
-            <span className="w-4" />
+            <span style={styles.chevron} />
             {/* File icon based on language */}
             {getFileIcon(item.type === "file" ? item.language : "text")}
           </>
         )}
 
         {/* Item name */}
-        <span className="text-sm truncate flex-1 font-mono">{item.name}</span>
+        <span style={styles.itemName}>{item.name}</span>
 
         {/* Action buttons (shown on hover) */}
-        <div className="hidden group-hover:flex items-center gap-1">
+        <div style={{ ...styles.actions, display: isHovered ? 'flex' : 'none' }}>
           {/* Create buttons for folders */}
           {isFolder && (
             <>
@@ -204,7 +330,7 @@ function TreeItem({
                   e.stopPropagation();
                   setIsCreating("file");
                 }}
-                className="p-1 hover:bg-[var(--color-border)] rounded cursor-pointer text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
+                style={styles.actionButton}
                 title="New file"
               >
                 <Plus size={12} />
@@ -214,7 +340,7 @@ function TreeItem({
                   e.stopPropagation();
                   setIsCreating("folder");
                 }}
-                className="p-1 hover:bg-[var(--color-border)] rounded cursor-pointer text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
+                style={styles.actionButton}
                 title="New folder"
               >
                 <FolderPlus size={12} />
@@ -228,7 +354,7 @@ function TreeItem({
               e.stopPropagation();
               onDeleteItem(item.id);
             }}
-            className="p-1 hover:bg-[var(--color-error-subtle)] rounded text-[var(--color-text-muted)] hover:text-[var(--color-error)] cursor-pointer transition-colors"
+            style={styles.deleteButton}
             title="Delete"
           >
             <Trash2 size={12} />
@@ -239,8 +365,11 @@ function TreeItem({
       {/* Create new item input (inside folder) */}
       {isCreating && (
         <div
-          className="flex items-center gap-2 px-3 py-2 animate-slide-down"
-          style={{ paddingLeft: `${(depth + 1) * 16 + 12}px` }}
+          style={{
+            ...styles.createInput,
+            paddingLeft: `${(depth + 1) * 16 + 12}px`,
+          }}
+          className="animate-slide-down"
         >
           <input
             type="text"
@@ -252,7 +381,7 @@ function TreeItem({
             }}
             onBlur={handleCreate}
             placeholder={isCreating === "file" ? "filename.ext" : "folder name"}
-            className="flex-1 px-3 py-1.5 bg-[var(--color-bg)] border border-[var(--color-accent)] rounded-lg text-sm text-[var(--color-text)] outline-none font-mono transition-colors"
+            style={styles.input}
             autoFocus
           />
         </div>
@@ -325,17 +454,17 @@ export default function FileTree({
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div style={styles.container}>
       {/* Header with create buttons */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border-subtle)]">
-        <span className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+      <div style={styles.header}>
+        <span style={styles.headerTitle}>
           Explorer
         </span>
-        <div className="flex items-center gap-1">
+        <div style={styles.headerButtons}>
           {/* New file button */}
           <button
             onClick={() => setIsCreating("file")}
-            className="p-1.5 hover:bg-[var(--color-surface-hover)] rounded-lg cursor-pointer text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
+            style={styles.headerButton}
             title="New file"
           >
             <Plus size={14} />
@@ -343,7 +472,7 @@ export default function FileTree({
           {/* New folder button */}
           <button
             onClick={() => setIsCreating("folder")}
-            className="p-1.5 hover:bg-[var(--color-surface-hover)] rounded-lg cursor-pointer text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
+            style={styles.headerButton}
             title="New folder"
           >
             <FolderPlus size={14} />
@@ -352,10 +481,10 @@ export default function FileTree({
       </div>
 
       {/* File tree content */}
-      <div className="flex-1 overflow-auto py-2">
+      <div style={styles.content}>
         {/* Root level create input */}
         {isCreating && (
-          <div className="flex items-center gap-2 px-4 py-2 animate-slide-down">
+          <div style={styles.createInput} className="animate-slide-down">
             <input
               type="text"
               value={newName}
@@ -366,7 +495,7 @@ export default function FileTree({
               }}
               onBlur={handleCreate}
               placeholder={isCreating === "file" ? "filename.ext" : "folder name"}
-              className="flex-1 px-3 py-1.5 bg-[var(--color-bg)] border border-[var(--color-accent)] rounded-lg text-sm text-[var(--color-text)] outline-none font-mono transition-colors"
+              style={styles.input}
               autoFocus
             />
           </div>
@@ -390,11 +519,11 @@ export default function FileTree({
 
         {/* Empty state */}
         {rootItems.length === 0 && !isCreating && (
-          <div className="px-4 py-12 text-center animate-fade-in">
-            <p className="text-[var(--color-text-muted)] text-sm mb-1">
+          <div style={styles.emptyState} className="animate-fade-in">
+            <p style={styles.emptyText}>
               No files yet
             </p>
-            <p className="text-[var(--color-text-muted)] text-xs">
+            <p style={styles.emptySubtext}>
               Click + to create one
             </p>
           </div>

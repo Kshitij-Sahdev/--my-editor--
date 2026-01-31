@@ -113,10 +113,8 @@ export default function Resizer({
   return (
     <div
       onMouseDown={handleMouseDown}
-      className={`
-        resizer shrink-0 z-10
-        ${direction === "horizontal" ? "resizer-x" : "resizer-y"}
-      `}
+      className={`resizer ${direction === "horizontal" ? "resizer-x" : "resizer-y"}`}
+      style={{ flexShrink: 0, zIndex: 10 }}
     />
   );
 }
