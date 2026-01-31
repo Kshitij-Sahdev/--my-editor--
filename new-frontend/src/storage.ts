@@ -7,7 +7,7 @@
  */
 
 import type { AppState, FileItem, FolderItem, Commit, FileSystemItem, Language } from "./types";
-import { DEFAULT_CODE, EXTENSION_TO_LANGUAGE } from "./types";
+import { DEFAULT_CODE, EXTENSION_TO_LANGUAGE, DEFAULT_SETTINGS } from "./types";
 
 // =============================================================================
 // STORAGE CONFIGURATION
@@ -64,6 +64,7 @@ function createDefaultState(): AppState {
     activeFileId: mainFile.id,
     sidebarWidth: 260,    // Default sidebar width
     outputHeight: 200,    // Default output panel height
+    settings: DEFAULT_SETTINGS,
   };
 }
 
@@ -90,6 +91,7 @@ export function loadState(): AppState {
           // Ensure layout values have defaults if missing
           sidebarWidth: parsed.sidebarWidth || 260,
           outputHeight: parsed.outputHeight || 200,
+          settings: parsed.settings || DEFAULT_SETTINGS,
         };
       }
     }

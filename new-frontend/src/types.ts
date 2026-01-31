@@ -13,8 +13,9 @@
 /**
  * Supported programming languages in the editor.
  * "text" is used for unsupported/unknown file extensions.
+ * "markdown" is for .md files with syntax highlighting.
  */
-export type Language = "python" | "cpp" | "java" | "go" | "javascript" | "text";
+export type Language = "python" | "cpp" | "java" | "go" | "javascript" | "markdown" | "text";
 
 // =============================================================================
 // API TYPES (matches Go backend structs)
@@ -94,6 +95,85 @@ export interface Commit {
 }
 
 // =============================================================================
+// EDITOR SETTINGS TYPES
+// =============================================================================
+
+/**
+ * Available theme options
+ */
+export interface ThemeOption {
+  id: string;
+  name: string;
+}
+
+/**
+ * Available font options
+ */
+export interface FontOption {
+  id: string;
+  name: string;
+  css: string;
+}
+
+/**
+ * Editor settings that can be customized
+ */
+export interface EditorSettings {
+  theme: string;
+  fontFamily: string;
+  fontSize: number;
+  lineNumbers: boolean;
+  wordWrap: boolean;
+  bracketMatching: boolean;
+  highlightActiveLine: boolean;
+  tabSize: number;
+  autoShowOutput: boolean;
+}
+
+/**
+ * Available themes
+ */
+export const AVAILABLE_THEMES: ThemeOption[] = [
+  { id: 'amoled-black', name: 'AMOLED Black' },
+  { id: 'one-dark', name: 'One Dark' },
+  { id: 'dracula', name: 'Dracula' },
+  { id: 'nord', name: 'Nord' },
+  { id: 'github-dark', name: 'GitHub Dark' },
+  { id: 'monokai', name: 'Monokai' },
+  { id: 'solarized-dark', name: 'Solarized Dark' },
+  { id: 'tokyo-night', name: 'Tokyo Night' },
+];
+
+/**
+ * Available fonts
+ */
+export const AVAILABLE_FONTS: FontOption[] = [
+  { id: 'jetbrains-mono', name: 'JetBrains Mono', css: '"JetBrains Mono", monospace' },
+  { id: 'fira-code', name: 'Fira Code', css: '"Fira Code", monospace' },
+  { id: 'source-code-pro', name: 'Source Code Pro', css: '"Source Code Pro", monospace' },
+  { id: 'cascadia-code', name: 'Cascadia Code', css: '"Cascadia Code", monospace' },
+  { id: 'sf-mono', name: 'SF Mono', css: '"SF Mono", monospace' },
+  { id: 'consolas', name: 'Consolas', css: 'Consolas, monospace' },
+  { id: 'monaco', name: 'Monaco', css: 'Monaco, monospace' },
+  { id: 'ubuntu-mono', name: 'Ubuntu Mono', css: '"Ubuntu Mono", monospace' },
+];
+
+/**
+ * Default editor settings - AMOLED Black theme by default
+ */
+export const DEFAULT_SETTINGS: EditorSettings = {
+  theme: 'amoled-black',
+  fontFamily: 'jetbrains-mono',
+  fontSize: 14,
+  lineNumbers: true,
+  wordWrap: false,
+  bracketMatching: true,
+  highlightActiveLine: true,
+  tabSize: 4,
+  autoShowOutput: true,
+};
+
+// =============================================================================
 // APPLICATION STATE
 // =============================================================================
 
@@ -107,6 +187,7 @@ export interface AppState {
   activeFileId: string | null; // Currently selected file ID
   sidebarWidth: number;        // Sidebar panel width in pixels
   outputHeight: number;        // Output panel height in pixels
+  settings: EditorSettings;    // Editor customization settings
 }
 
 // =============================================================================
@@ -123,6 +204,7 @@ export const LANGUAGE_EXTENSIONS: Record<Language, string> = {
   java: ".java",
   go: ".go",
   javascript: ".js",
+  markdown: ".md",
   text: ".txt",
 };
 
@@ -156,10 +238,15 @@ export const EXTENSION_TO_LANGUAGE: Record<string, Language> = {
   ".tsx": "javascript",
   ".mjs": "javascript",
   
+  // Markdown
+  ".md": "markdown",
+  ".markdown": "markdown",
+  ".mdx": "markdown",
+  
   // Plain text / unsupported (no syntax highlighting, not runnable)
   ".txt": "text",
-  ".md": "text",
   ".json": "text",
+  ".conf": "text",
   ".yaml": "text",
   ".yml": "text",
   ".toml": "text",
@@ -224,6 +311,20 @@ func main() {
 
 console.log("Hello from JavaScript!");
 `,
+  markdown: `# Welcome to Markdown
+
+This is a **markdown** file with *syntax highlighting*.
+
+## Features
+
+- Lists
+- Code blocks
+- And more!
+
+\`\`\`javascript
+console.log("Code block example");
+\`\`\`
+`,
   text: ``,  // Empty for plain text files
 };
 
@@ -237,5 +338,6 @@ export const LANGUAGE_LABELS: Record<Language, string> = {
   java: "Java",
   go: "Go",
   javascript: "JavaScript",
+  markdown: "Markdown",
   text: "Plain Text",
 };

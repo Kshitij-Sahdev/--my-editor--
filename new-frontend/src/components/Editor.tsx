@@ -33,9 +33,10 @@ import { cpp } from "@codemirror/lang-cpp";
 import { java } from "@codemirror/lang-java";
 import { go } from "@codemirror/lang-go";
 import { javascript } from "@codemirror/lang-javascript";
+import { markdown } from "@codemirror/lang-markdown";
 import { GitCommit, Save, X, AlertCircle } from "lucide-react";
-import type { Language } from "../types";
-import { RUNNABLE_LANGUAGES, LANGUAGE_LABELS } from "../types";
+import type { Language, EditorSettings } from "../types";
+import { RUNNABLE_LANGUAGES, LANGUAGE_LABELS, AVAILABLE_FONTS } from "../types";
 
 // =============================================================================
 // TYPES
@@ -58,6 +59,8 @@ interface EditorProps {
   onRun: () => void;
   /** Callback to commit changes with a message */
   onCommit: (message: string) => void;
+  /** Editor settings (optional) */
+  settings?: EditorSettings;
 }
 
 // =============================================================================
@@ -222,6 +225,8 @@ const styles = {
   editorContainer: {
     flex: 1,
     overflow: 'hidden',
+    minHeight: 0,
+    height: '100%',
   } as React.CSSProperties,
   statusBar: {
     display: 'flex',
@@ -268,6 +273,7 @@ const languageExtensions: Partial<
   java: java(),
   go: go(),
   javascript: javascript(),
+  markdown: markdown(),
 };
 
 // =============================================================================
@@ -283,6 +289,7 @@ export default function Editor({
   onContentChange,
   onRun,
   onCommit,
+  settings,
 }: EditorProps) {
   // ---------------------------------------------------------------------------
   // REFS
@@ -401,23 +408,52 @@ export default function Editor({
       }
     });
 
+    // Get font family from settings
+    const fontConfig = AVAILABLE_FONTS.find(f => f.id === settings?.fontFamily);
+    const fontFamily = fontConfig?.css || '"JetBrains Mono", monospace';
+    const fontSize = settings?.fontSize || 14;
+
     // Assemble extensions
     const extensions = [
-      lineNumbers(),
-      highlightActiveLineGutter(),
-      highlightActiveLine(),
       history(),
-      bracketMatching(),
       syntaxHighlighting(defaultHighlightStyle),
       oneDark, // Dark theme
       runKeymap,
       keymap.of([...defaultKeymap, ...historyKeymap]),
       updateListener,
       EditorView.theme({
-        "&": { height: "100%" },
-        ".cm-scroller": { overflow: "auto" },
+        "&": { height: "100%", minHeight: "100%" },
+        ".cm-scroller": { 
+          overflow: "auto",
+          fontFamily: fontFamily,
+          fontSize: `${fontSize}px`,
+        },
+        ".cm-content": {
+          minHeight: "100%",
+        },
       }),
     ];
+
+    // Add line numbers if enabled
+    if (settings?.lineNumbers !== false) {
+      extensions.push(lineNumbers());
+      extensions.push(highlightActiveLineGutter());
+    }
+
+    // Add active line highlighting if enabled
+    if (settings?.highlightActiveLine !== false) {
+      extensions.push(highlightActiveLine());
+    }
+
+    // Add bracket matching if enabled
+    if (settings?.bracketMatching !== false) {
+      extensions.push(bracketMatching());
+    }
+
+    // Add word wrap if enabled
+    if (settings?.wordWrap) {
+      extensions.push(EditorView.lineWrapping);
+    }
 
     // Add language extension if supported (not for plain text)
     const langExt = languageExtensions[language];
@@ -445,7 +481,7 @@ export default function Editor({
       view.destroy();
       viewRef.current = null;
     };
-  }, [fileId, language, handleRun]);
+  }, [fileId, language, handleRun, settings]);
 
   /**
    * Sync external content changes (e.g., from restoring a commit).

@@ -19,7 +19,8 @@ import Header from "./components/Header";
 import Sidebar from "./components/Sidebar";
 import Editor from "./components/Editor";
 import Output from "./components/Output";
-import type { AppState, FileItem, Commit, Language, RunOutput } from "./types";
+import Settings from "./components/Settings";
+import type { AppState, FileItem, Commit, Language, RunOutput, EditorSettings } from "./types";
 import {
   loadState,
   saveState,
@@ -36,8 +37,8 @@ import {
 /** Default width for the sidebar panel in pixels */
 const SIDEBAR_WIDTH = 280;
 
-/** Default height for the output panel in pixels */
-const OUTPUT_HEIGHT = 250;
+/** Default width for the output panel in pixels (now on left side) */
+const OUTPUT_WIDTH = 400;
 
 /**
  * Go backend URL for code execution.
@@ -191,26 +192,26 @@ const styles = {
   outputTrigger: {
     position: 'absolute',
     left: 0,
-    right: 0,
+    top: 0,
     bottom: 0,
-    height: '20px',
+    width: '20px',
     zIndex: 40,
   } as React.CSSProperties,
   outputIndicator: {
     position: 'absolute',
-    bottom: '4px',
-    left: '50%',
-    transform: 'translateX(-50%)',
-    height: '4px',
-    width: '80px',
-    background: 'linear-gradient(to right, transparent, var(--color-accent), transparent)',
+    left: '4px',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    width: '4px',
+    height: '80px',
+    background: 'linear-gradient(to bottom, transparent, var(--color-accent), transparent)',
     borderRadius: '9999px',
     opacity: 0.5,
   } as React.CSSProperties,
   outputPanel: {
     position: 'absolute',
     left: 0,
-    right: 0,
+    top: 0,
     bottom: 0,
     zIndex: 30,
     transition: 'transform 0.3s ease-out',
@@ -218,8 +219,8 @@ const styles = {
   outputInner: {
     height: '100%',
     backgroundColor: 'var(--color-surface)',
-    borderTop: '1px solid var(--color-border)',
-    boxShadow: '0 -25px 50px -12px rgba(0, 0, 0, 0.8)',
+    borderRight: '1px solid var(--color-border)',
+    boxShadow: '25px 0 50px -12px rgba(0, 0, 0, 0.8)',
     display: 'flex',
     flexDirection: 'column',
     position: 'relative',
@@ -227,7 +228,7 @@ const styles = {
   outputPinButton: {
     position: 'absolute',
     top: '12px',
-    right: '48px',
+    right: '12px',
     zIndex: 10,
   } as React.CSSProperties,
 };
@@ -551,6 +552,11 @@ export default function App() {
     if (isRunning || !activeFile) return;
 
     setIsRunning(true);
+    
+    // Auto-show output panel if setting is enabled
+    if (state?.settings?.autoShowOutput) {
+      setOutputPinned(true);
+    }
 
     try {
       const response = await fetch(`${API_URL}/run`, {
@@ -578,12 +584,31 @@ export default function App() {
     } finally {
       setIsRunning(false);
     }
-  }, [activeFile, isRunning]);
+  }, [activeFile, isRunning, state?.settings?.autoShowOutput]);
 
   /**
    * Clear the output panel.
    */
   const clearOutput = useCallback(() => setOutput(null), []);
+
+  // ---------------------------------------------------------------------------
+  // SETTINGS
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Check if current file is settings.conf
+   */
+  const isSettingsFile = activeFile?.name === 'settings.conf';
+
+  /**
+   * Handle settings changes
+   */
+  const handleSettingsChange = useCallback((newSettings: EditorSettings) => {
+    setState((prev) => {
+      if (!prev) return prev;
+      return { ...prev, settings: newSettings };
+    });
+  }, []);
 
   // ---------------------------------------------------------------------------
   // LOADING STATE
@@ -620,9 +645,66 @@ export default function App() {
 
       {/* Main content area */}
       <div style={styles.mainContent}>
-        {/* Editor area - takes full space */}
-        <div style={styles.editorArea}>
-          {activeFile ? (
+        {/* Output hover trigger zone - on LEFT edge when output exists */}
+        {output && !outputVisible && (
+          <div 
+            style={styles.outputTrigger}
+            onMouseEnter={() => setOutputHovered(true)}
+          >
+            <div style={styles.outputIndicator} className="animate-pulse" />
+          </div>
+        )}
+
+        {/* Output panel - NOW ON LEFT SIDE */}
+        {output && (
+          <div 
+            className="output-container"
+            style={{
+              ...styles.outputPanel,
+              width: OUTPUT_WIDTH,
+              transform: outputVisible ? 'translateX(0)' : 'translateX(-100%)',
+            }}
+            onMouseEnter={() => setOutputHovered(true)}
+            onMouseLeave={() => setOutputHovered(false)}
+          >
+            <div style={styles.outputInner}>
+              {/* Pin button */}
+              <button
+                onClick={() => setOutputPinned(!outputPinned)}
+                style={{
+                  ...styles.pinButton,
+                  ...styles.outputPinButton,
+                  ...(outputPinned ? styles.pinButtonActive : styles.pinButtonInactive),
+                }}
+                title={outputPinned ? 'Unpin output' : 'Pin output'}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 17v5M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z" />
+                </svg>
+              </button>
+              
+              <Output
+                stdout={output.stdout}
+                stderr={output.stderr}
+                onClear={clearOutput}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Editor area - takes full space, shifts when output is pinned */}
+        <div style={{
+          ...styles.editorArea,
+          marginLeft: outputVisible ? OUTPUT_WIDTH : 0,
+          transition: 'margin-left 0.3s ease-out',
+        }}>
+          {isSettingsFile ? (
+            // Show settings panel for settings.conf
+            <Settings
+              settings={state.settings}
+              onSettingsChange={handleSettingsChange}
+            />
+          ) : activeFile ? (
             <Editor
               key={activeFile.id}
               fileId={activeFile.id}
@@ -633,6 +715,7 @@ export default function App() {
               onContentChange={handleContentChange}
               onRun={runCode}
               onCommit={handleCommit}
+              settings={state.settings}
             />
           ) : (
             // Empty state when no file is selected
@@ -652,29 +735,43 @@ export default function App() {
           )}
         </div>
 
-        {/* Sidebar hover trigger zone - always present on left edge */}
+        {/* Sidebar hover trigger zone - on RIGHT edge now */}
         <div 
-          style={styles.sidebarTrigger}
+          style={{
+            ...styles.sidebarTrigger,
+            left: 'auto',
+            right: 0,
+          }}
           onMouseEnter={() => setSidebarHovered(true)}
         >
           {/* Visual indicator - only show when sidebar is hidden */}
           {!sidebarVisible && (
-            <div style={styles.sidebarIndicator} className="animate-pulse" />
+            <div style={{
+              ...styles.sidebarIndicator,
+              left: 'auto',
+              right: '4px',
+            }} className="animate-pulse" />
           )}
         </div>
 
-        {/* Left sidebar panel */}
+        {/* Sidebar panel - NOW ON RIGHT SIDE */}
         <div 
           className="sidebar-container"
           style={{
             ...styles.sidebarPanel,
+            left: 'auto',
+            right: 0,
             width: SIDEBAR_WIDTH,
-            transform: sidebarVisible ? 'translateX(0)' : 'translateX(-100%)',
+            transform: sidebarVisible ? 'translateX(0)' : 'translateX(100%)',
           }}
           onMouseEnter={() => setSidebarHovered(true)}
           onMouseLeave={() => setSidebarHovered(false)}
         >
-          <div style={styles.sidebarInner}>
+          <div style={{
+            ...styles.sidebarInner,
+            borderRight: 'none',
+            borderLeft: '1px solid var(--color-border)',
+          }}>
             {/* Pin button */}
             <button
               onClick={() => setSidebarPinned(!sidebarPinned)}
@@ -706,56 +803,6 @@ export default function App() {
             />
           </div>
         </div>
-
-        {/* Output hover trigger zone - always present at bottom edge when output exists */}
-        {output && (
-          <div 
-            style={styles.outputTrigger}
-            onMouseEnter={() => setOutputHovered(true)}
-          >
-            {/* Visual indicator - only show when output is hidden */}
-            {!outputVisible && (
-              <div style={styles.outputIndicator} className="animate-pulse" />
-            )}
-          </div>
-        )}
-
-        {/* Output panel */}
-        {output && (
-          <div 
-            className="output-container"
-            style={{
-              ...styles.outputPanel,
-              height: OUTPUT_HEIGHT,
-              transform: outputVisible ? 'translateY(0)' : 'translateY(100%)',
-            }}
-            onMouseEnter={() => setOutputHovered(true)}
-            onMouseLeave={() => setOutputHovered(false)}
-          >
-            <div style={styles.outputInner}>
-              {/* Pin button */}
-              <button
-                onClick={() => setOutputPinned(!outputPinned)}
-                style={{
-                  ...styles.pinButton,
-                  ...styles.outputPinButton,
-                  ...(outputPinned ? styles.pinButtonActive : styles.pinButtonInactive),
-                }}
-                title={outputPinned ? 'Unpin output' : 'Pin output'}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 17v5M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z" />
-                </svg>
-              </button>
-              
-              <Output
-                stdout={output.stdout}
-                stderr={output.stderr}
-                onClear={clearOutput}
-              />
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

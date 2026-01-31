@@ -148,13 +148,10 @@ export default function Header({ activeFile, onRun, isRunning }: HeaderProps) {
             <Terminal size={20} style={styles.logoIconInner} />
           </div>
 
-          {/* App name and version */}
+          {/* App name */}
           <div style={styles.logoText}>
             <span style={styles.logoName}>
               run()
-            </span>
-            <span style={styles.logoVersion}>
-              v2.0
             </span>
           </div>
         </div>
