@@ -10,11 +10,14 @@
  * - Word wrap toggle
  * - Minimap toggle
  * - Bracket matching toggle
+ * 
+ * Uses local state with an Apply button for changes.
  */
 
 "use client";
 
-import { Settings as SettingsIcon, Check, RotateCcw } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Settings as SettingsIcon, Check, RotateCcw, Save } from "lucide-react";
 import type { EditorSettings } from "../types";
 import { DEFAULT_SETTINGS, AVAILABLE_THEMES, AVAILABLE_FONTS } from "../types";
 
@@ -73,6 +76,31 @@ const styles = {
     color: 'var(--color-text-muted)',
     cursor: 'pointer',
     transition: 'all 0.2s',
+  } as React.CSSProperties,
+  headerButtons: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  } as React.CSSProperties,
+  applyButton: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '8px 16px',
+    backgroundColor: 'var(--color-accent)',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '12px',
+    fontWeight: 600,
+    color: 'white',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    boxShadow: '0 0 12px var(--color-accent-glow)',
+  } as React.CSSProperties,
+  applyButtonDisabled: {
+    opacity: 0.5,
+    cursor: 'not-allowed',
+    boxShadow: 'none',
   } as React.CSSProperties,
   content: {
     padding: '24px',
@@ -264,22 +292,43 @@ const themePreviewColors: Record<string, { bg: string; accent: string }> = {
 // =============================================================================
 
 export default function Settings({ settings, onSettingsChange }: SettingsProps) {
+  // Local state for pending changes
+  const [localSettings, setLocalSettings] = useState<EditorSettings>(settings);
+  const [hasChanges, setHasChanges] = useState(false);
+
+  // Sync local settings when props change (e.g., after apply or reset)
+  useEffect(() => {
+    setLocalSettings(settings);
+    setHasChanges(false);
+  }, [settings]);
+
+  // Check if local settings differ from saved settings
+  useEffect(() => {
+    const changed = JSON.stringify(localSettings) !== JSON.stringify(settings);
+    setHasChanges(changed);
+  }, [localSettings, settings]);
+
   const handleToggle = (key: keyof EditorSettings) => {
-    onSettingsChange({
-      ...settings,
-      [key]: !settings[key],
-    });
+    setLocalSettings(prev => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
   };
 
   const handleChange = (key: keyof EditorSettings, value: string | number) => {
-    onSettingsChange({
-      ...settings,
+    setLocalSettings(prev => ({
+      ...prev,
       [key]: value,
-    });
+    }));
   };
 
   const handleReset = () => {
-    onSettingsChange(DEFAULT_SETTINGS);
+    setLocalSettings(DEFAULT_SETTINGS);
+  };
+
+  const handleApply = () => {
+    onSettingsChange(localSettings);
+    setHasChanges(false);
   };
 
   return (
@@ -290,10 +339,23 @@ export default function Settings({ settings, onSettingsChange }: SettingsProps) 
           <SettingsIcon size={24} style={styles.headerIcon} />
           <span style={styles.headerTitle}>Editor Settings</span>
         </div>
-        <button style={styles.resetButton} onClick={handleReset}>
-          <RotateCcw size={14} />
-          Reset to Defaults
-        </button>
+        <div style={styles.headerButtons}>
+          <button style={styles.resetButton} onClick={handleReset}>
+            <RotateCcw size={14} />
+            Reset
+          </button>
+          <button 
+            style={{
+              ...styles.applyButton,
+              ...(hasChanges ? {} : styles.applyButtonDisabled),
+            }}
+            onClick={handleApply}
+            disabled={!hasChanges}
+          >
+            <Save size={14} />
+            Apply Changes
+          </button>
+        </div>
       </div>
 
       {/* Content */}
@@ -307,7 +369,7 @@ export default function Settings({ settings, onSettingsChange }: SettingsProps) 
                 key={theme.id}
                 style={{
                   ...styles.themeOption,
-                  ...(settings.theme === theme.id ? styles.themeOptionActive : {}),
+                  ...(localSettings.theme === theme.id ? styles.themeOptionActive : {}),
                   position: 'relative',
                 }}
                 onClick={() => handleChange('theme', theme.id)}
@@ -323,7 +385,7 @@ export default function Settings({ settings, onSettingsChange }: SettingsProps) 
                   </span>
                 </div>
                 <span style={styles.themeName}>{theme.name}</span>
-                {settings.theme === theme.id && (
+                {localSettings.theme === theme.id && (
                   <Check size={16} style={styles.checkIcon} />
                 )}
               </div>
@@ -340,13 +402,13 @@ export default function Settings({ settings, onSettingsChange }: SettingsProps) 
                 key={font.id}
                 style={{
                   ...styles.fontOption,
-                  ...(settings.fontFamily === font.id ? styles.fontOptionActive : {}),
+                  ...(localSettings.fontFamily === font.id ? styles.fontOptionActive : {}),
                 }}
                 onClick={() => handleChange('fontFamily', font.id)}
               >
                 <span style={{ ...styles.fontPreview, fontFamily: font.css }}>Aa</span>
                 <span style={styles.fontName}>{font.name}</span>
-                {settings.fontFamily === font.id && (
+                {localSettings.fontFamily === font.id && (
                   <Check size={14} style={{ ...styles.checkIcon, top: '50%', transform: 'translateY(-50%)' }} />
                 )}
               </div>
@@ -367,11 +429,11 @@ export default function Settings({ settings, onSettingsChange }: SettingsProps) 
                 type="range"
                 min="10"
                 max="24"
-                value={settings.fontSize}
+                value={localSettings.fontSize}
                 onChange={(e) => handleChange('fontSize', parseInt(e.target.value))}
                 style={styles.slider}
               />
-              <span style={styles.sliderValue}>{settings.fontSize}px</span>
+              <span style={styles.sliderValue}>{localSettings.fontSize}px</span>
             </div>
           </div>
         </div>
@@ -388,14 +450,14 @@ export default function Settings({ settings, onSettingsChange }: SettingsProps) 
             <div
               style={{
                 ...styles.toggle,
-                ...(settings.lineNumbers ? styles.toggleActive : {}),
+                ...(localSettings.lineNumbers ? styles.toggleActive : {}),
               }}
               onClick={() => handleToggle('lineNumbers')}
             >
               <div
                 style={{
                   ...styles.toggleKnob,
-                  ...(settings.lineNumbers ? styles.toggleKnobActive : {}),
+                  ...(localSettings.lineNumbers ? styles.toggleKnobActive : {}),
                 }}
               />
             </div>
@@ -409,14 +471,14 @@ export default function Settings({ settings, onSettingsChange }: SettingsProps) 
             <div
               style={{
                 ...styles.toggle,
-                ...(settings.wordWrap ? styles.toggleActive : {}),
+                ...(localSettings.wordWrap ? styles.toggleActive : {}),
               }}
               onClick={() => handleToggle('wordWrap')}
             >
               <div
                 style={{
                   ...styles.toggleKnob,
-                  ...(settings.wordWrap ? styles.toggleKnobActive : {}),
+                  ...(localSettings.wordWrap ? styles.toggleKnobActive : {}),
                 }}
               />
             </div>
@@ -430,14 +492,14 @@ export default function Settings({ settings, onSettingsChange }: SettingsProps) 
             <div
               style={{
                 ...styles.toggle,
-                ...(settings.bracketMatching ? styles.toggleActive : {}),
+                ...(localSettings.bracketMatching ? styles.toggleActive : {}),
               }}
               onClick={() => handleToggle('bracketMatching')}
             >
               <div
                 style={{
                   ...styles.toggleKnob,
-                  ...(settings.bracketMatching ? styles.toggleKnobActive : {}),
+                  ...(localSettings.bracketMatching ? styles.toggleKnobActive : {}),
                 }}
               />
             </div>
@@ -451,14 +513,14 @@ export default function Settings({ settings, onSettingsChange }: SettingsProps) 
             <div
               style={{
                 ...styles.toggle,
-                ...(settings.highlightActiveLine ? styles.toggleActive : {}),
+                ...(localSettings.highlightActiveLine ? styles.toggleActive : {}),
               }}
               onClick={() => handleToggle('highlightActiveLine')}
             >
               <div
                 style={{
                   ...styles.toggleKnob,
-                  ...(settings.highlightActiveLine ? styles.toggleKnobActive : {}),
+                  ...(localSettings.highlightActiveLine ? styles.toggleKnobActive : {}),
                 }}
               />
             </div>
@@ -472,14 +534,14 @@ export default function Settings({ settings, onSettingsChange }: SettingsProps) 
             <div
               style={{
                 ...styles.toggle,
-                ...(settings.autoShowOutput ? styles.toggleActive : {}),
+                ...(localSettings.autoShowOutput ? styles.toggleActive : {}),
               }}
               onClick={() => handleToggle('autoShowOutput')}
             >
               <div
                 style={{
                   ...styles.toggleKnob,
-                  ...(settings.autoShowOutput ? styles.toggleKnobActive : {}),
+                  ...(localSettings.autoShowOutput ? styles.toggleKnobActive : {}),
                 }}
               />
             </div>
@@ -496,7 +558,7 @@ export default function Settings({ settings, onSettingsChange }: SettingsProps) 
               <span style={styles.optionDesc}>Number of spaces per tab</span>
             </div>
             <select
-              value={settings.tabSize}
+              value={localSettings.tabSize}
               onChange={(e) => handleChange('tabSize', parseInt(e.target.value))}
               style={styles.select}
             >

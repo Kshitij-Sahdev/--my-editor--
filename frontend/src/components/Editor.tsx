@@ -22,19 +22,20 @@ import {
   drawSelection,
 } from "@codemirror/view";
 import { EditorState } from "@codemirror/state";
-import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
+import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import {
   syntaxHighlighting,
   defaultHighlightStyle,
   bracketMatching,
+  indentUnit,
 } from "@codemirror/language";
-import { oneDark } from "@codemirror/theme-one-dark";
 import { python } from "@codemirror/lang-python";
 import { cpp } from "@codemirror/lang-cpp";
 import { java } from "@codemirror/lang-java";
 import { go } from "@codemirror/lang-go";
 import { javascript } from "@codemirror/lang-javascript";
 import { markdown } from "@codemirror/lang-markdown";
+import { editorThemes } from "../themes";
 import { GitCommit, Save, X, AlertCircle } from "lucide-react";
 import type { Language, EditorSettings } from "../types";
 import { RUNNABLE_LANGUAGES, LANGUAGE_LABELS, AVAILABLE_FONTS } from "../types";
@@ -390,13 +391,16 @@ export default function Editor({
     const fontSize = settings?.fontSize || 14;
 
     // Assemble extensions
+    const themeName = settings?.theme || 'amoled-black';
+    const themeExtension = editorThemes[themeName] || editorThemes['amoled-black'];
+    
     const extensions = [
       history(),
       drawSelection(), // Enable proper selection rendering including whitespace
       syntaxHighlighting(defaultHighlightStyle),
-      oneDark, // Dark theme
+      themeExtension, // Dynamic theme from settings
       runKeymap,
-      keymap.of([...defaultKeymap, ...historyKeymap]),
+      keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
       updateListener,
       EditorView.theme({
         "&": { 
@@ -442,6 +446,11 @@ export default function Editor({
     if (settings?.wordWrap) {
       extensions.push(EditorView.lineWrapping);
     }
+
+    // Add tab/indent size configuration
+    const tabSize = settings?.tabSize || 4;
+    extensions.push(indentUnit.of(" ".repeat(tabSize)));
+    extensions.push(EditorState.tabSize.of(tabSize));
 
     // Add language extension if supported (not for plain text)
     const langExt = languageExtensions[language];

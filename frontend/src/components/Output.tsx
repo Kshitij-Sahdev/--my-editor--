@@ -42,7 +42,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '10px 16px',
+    padding: '10px 16px 10px 48px',
     borderBottom: '1px solid var(--color-border-subtle)',
     backgroundColor: 'var(--color-surface-2)',
   } as React.CSSProperties,

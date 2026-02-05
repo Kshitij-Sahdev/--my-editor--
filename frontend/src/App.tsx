@@ -173,12 +173,12 @@ const styles = {
   } as React.CSSProperties,
   pinButton: {
     position: 'absolute',
-    top: '12px',
-    right: '12px',
+    bottom: '12px',
+    left: '12px',
     zIndex: 10,
-    width: '32px',
-    height: '32px',
-    borderRadius: '8px',
+    width: '28px',
+    height: '28px',
+    borderRadius: '6px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -233,8 +233,8 @@ const styles = {
   } as React.CSSProperties,
   outputPinButton: {
     position: 'absolute',
-    top: '12px',
-    right: '12px',
+    top: '8px',
+    left: '12px',
     zIndex: 10,
   } as React.CSSProperties,
 };
