@@ -22,6 +22,7 @@ import Editor from "./components/Editor";
 import Output from "./components/Output";
 import Settings from "./components/Settings";
 import StatusBar from "./components/StatusBar";
+import Resizer from "./components/Resizer";
 import { useIsMobile } from "./hooks/useIsMobile";
 import type { AppState, FileItem, Commit, Language, RunOutput, EditorSettings } from "./types";
 import {
@@ -279,6 +280,12 @@ export default function App() {
 
   /** Whether the output panel is being hovered */
   const [outputHovered, setOutputHovered] = useState(false);
+
+  /** Resizable sidebar width */
+  const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_WIDTH);
+
+  /** Resizable output height */
+  const [outputHeight, setOutputHeight] = useState(OUTPUT_HEIGHT);
 
   /** Detect mobile/portrait mode */
   const isMobile = useIsMobile();
@@ -615,6 +622,21 @@ export default function App() {
   }, []);
 
   // ---------------------------------------------------------------------------
+  // RESIZE HANDLERS
+  // ---------------------------------------------------------------------------
+
+  /** Handle sidebar width resize */
+  const handleSidebarResize = useCallback((delta: number) => {
+    setSidebarWidth(prev => Math.max(200, Math.min(500, prev + delta)));
+  }, []);
+
+  /** Handle output height resize */
+  const handleOutputResize = useCallback((delta: number) => {
+    // Negative delta because dragging up should increase height
+    setOutputHeight(prev => Math.max(150, Math.min(500, prev - delta)));
+  }, []);
+
+  // ---------------------------------------------------------------------------
   // SETTINGS
   // ---------------------------------------------------------------------------
 
@@ -691,13 +713,30 @@ export default function App() {
             className={`output-container ${isMobile ? 'mobile' : ''}`}
             style={{
               ...styles.outputPanel,
-              height: OUTPUT_HEIGHT,
+              height: outputHeight,
+              // Respect sidebar width so they don't overlap
+              left: sidebarVisible ? sidebarWidth : 0,
               transform: outputVisible ? 'translateY(0)' : 'translateY(100%)',
+              transition: 'transform 0.3s ease-out, left 0.3s ease-out',
             }}
             onMouseEnter={() => !isMobile && setOutputHovered(true)}
             onMouseLeave={() => !isMobile && setOutputHovered(false)}
           >
             <div style={styles.outputInner}>
+              {/* Vertical resizer on top edge of output */}
+              {outputVisible && !isMobile && (
+                <div style={{
+                  position: 'absolute',
+                  left: 0,
+                  right: 0,
+                  top: 0,
+                  height: '6px',
+                  zIndex: 50,
+                }}>
+                  <Resizer direction="vertical" onResize={handleOutputResize} />
+                </div>
+              )}
+
               {/* Pin button - hide on mobile since we use header buttons */}
               {!isMobile && (
                 <button
@@ -730,8 +769,8 @@ export default function App() {
           style={{
             ...styles.editorArea,
             // Sidebar on LEFT, Output on BOTTOM
-            marginLeft: sidebarVisible ? SIDEBAR_WIDTH : 0,
-            marginBottom: outputVisible ? OUTPUT_HEIGHT : 0,
+            marginLeft: sidebarVisible ? sidebarWidth : 0,
+            marginBottom: outputVisible ? outputHeight : 0,
             transition: 'margin-left 0.3s ease-out, margin-bottom 0.3s ease-out',
           }}
         >
@@ -791,8 +830,11 @@ export default function App() {
           className="sidebar-container"
           style={{
             ...styles.sidebarPanel,
-            width: SIDEBAR_WIDTH,
+            width: sidebarWidth,
+            // Respect output panel height so they don't overlap
+            bottom: outputVisible ? outputHeight : 0,
             transform: sidebarVisible ? 'translateX(0)' : 'translateX(-100%)',
+            transition: 'transform 0.3s ease-out, bottom 0.3s ease-out',
           }}
           onMouseEnter={() => !isMobile && setSidebarHovered(true)}
           onMouseLeave={() => !isMobile && setSidebarHovered(false)}
@@ -812,6 +854,20 @@ export default function App() {
                   <path d="M12 17v5M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z" />
                 </svg>
               </button>
+            )}
+
+            {/* Horizontal resizer on right edge of sidebar */}
+            {sidebarVisible && !isMobile && (
+              <div style={{
+                position: 'absolute',
+                right: 0,
+                top: 0,
+                bottom: 0,
+                width: '6px',
+                zIndex: 50,
+              }}>
+                <Resizer direction="horizontal" onResize={handleSidebarResize} />
+              </div>
             )}
             
             <Sidebar

@@ -115,13 +115,13 @@ body {
 }
 
 /* =============================================================================
-   RESIZABLE PANEL HANDLES (kept for reference but not actively used)
+   RESIZABLE PANEL HANDLES
    ============================================================================= */
 
 .resizer {
   background: transparent;
   transition: background 0.2s ease;
-  position: relative;
+  position: absolute;
 }
 
 .resizer::after {
@@ -140,6 +140,9 @@ body {
 .resizer-x {
   cursor: col-resize;
   width: 6px;
+  height: 100%;
+  top: 0;
+  right: 0;
 }
 
 .resizer-x::after {
@@ -152,6 +155,9 @@ body {
 .resizer-y {
   cursor: row-resize;
   height: 6px;
+  width: 100%;
+  top: 0;
+  left: 0;
 }
 
 .resizer-y::after {
