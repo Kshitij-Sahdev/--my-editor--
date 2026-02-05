@@ -692,11 +692,12 @@ export default function App() {
           </div>
         )}
 
-        {/* Editor area - takes full space, shifts when output is pinned */}
+        {/* Editor area - takes full space, shifts when panels are visible */}
         <div style={{
           ...styles.editorArea,
           marginLeft: outputVisible ? OUTPUT_WIDTH : 0,
-          transition: 'margin-left 0.3s ease-out',
+          marginRight: sidebarVisible ? SIDEBAR_WIDTH : 0,
+          transition: 'margin-left 0.3s ease-out, margin-right 0.3s ease-out',
         }}>
           {isSettingsFile ? (
             // Show settings panel for settings.conf

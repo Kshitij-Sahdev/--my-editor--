@@ -19,6 +19,7 @@ import {
   lineNumbers,
   highlightActiveLineGutter,
   highlightActiveLine,
+  drawSelection,
 } from "@codemirror/view";
 import { EditorState } from "@codemirror/state";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
@@ -73,6 +74,8 @@ const styles = {
     flexDirection: 'column',
     flex: 1,
     minHeight: 0,
+    height: '100%',
+    overflow: 'hidden',
     backgroundColor: 'var(--color-surface)',
   } as React.CSSProperties,
   toolbar: {
@@ -226,7 +229,7 @@ const styles = {
     flex: 1,
     overflow: 'hidden',
     minHeight: 0,
-    height: '100%',
+    position: 'relative',
   } as React.CSSProperties,
   statusBar: {
     display: 'flex',
@@ -416,20 +419,32 @@ export default function Editor({
     // Assemble extensions
     const extensions = [
       history(),
+      drawSelection(), // Enable proper selection rendering including whitespace
       syntaxHighlighting(defaultHighlightStyle),
       oneDark, // Dark theme
       runKeymap,
       keymap.of([...defaultKeymap, ...historyKeymap]),
       updateListener,
       EditorView.theme({
-        "&": { height: "100%", minHeight: "100%" },
+        "&": { 
+          height: "100%",
+          maxHeight: "100%",
+          flex: "1",
+        },
         ".cm-scroller": { 
-          overflow: "auto",
+          overflow: "auto !important",
           fontFamily: fontFamily,
           fontSize: `${fontSize}px`,
         },
         ".cm-content": {
           minHeight: "100%",
+          caretColor: "var(--color-accent)",
+        },
+        ".cm-selectionBackground, .cm-content ::selection": {
+          backgroundColor: "rgba(16, 185, 129, 0.3) !important",
+        },
+        "&.cm-focused .cm-selectionBackground": {
+          backgroundColor: "rgba(16, 185, 129, 0.3) !important",
         },
       }),
     ];

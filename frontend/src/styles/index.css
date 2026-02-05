@@ -193,6 +193,29 @@ body {
   padding: 16px 0 !important;
 }
 
+/* Ensure selection is visible on whitespace and empty lines */
+.cm-selectionLayer {
+  z-index: 1;
+}
+
+.cm-selectionBackground {
+  background: rgba(16, 185, 129, 0.3) !important;
+}
+
+.cm-focused .cm-selectionBackground {
+  background: rgba(16, 185, 129, 0.35) !important;
+}
+
+/* Native selection for text */
+.cm-content ::selection {
+  background: rgba(16, 185, 129, 0.35) !important;
+}
+
+.cm-line::selection,
+.cm-line *::selection {
+  background: rgba(16, 185, 129, 0.35) !important;
+}
+
 .cm-content {
   padding: 0 20px !important;
 }
