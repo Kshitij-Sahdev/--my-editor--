@@ -673,54 +673,9 @@ input:focus, textarea:focus {
 
 /* Portrait/Mobile panel positioning */
 @media (orientation: portrait), (max-width: 768px) {
-  /* Sidebar slides from TOP on mobile */
-  .sidebar-container.mobile {
-    left: 0 !important;
-    right: 0 !important;
-    top: 0 !important;
-    bottom: auto !important;
-    width: 100% !important;
-    height: 50vh !important;
-    max-height: 400px !important;
-  }
-  
-  .sidebar-container.mobile > div {
-    border-right: none !important;
-    border-bottom: 1px solid var(--color-border) !important;
-    border-radius: 0 0 16px 16px !important;
-  }
-  
-  /* Output slides from BOTTOM on mobile */
-  .output-container.mobile {
-    left: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
-    top: auto !important;
-    width: 100% !important;
-    height: 50vh !important;
-    max-height: 400px !important;
-  }
-  
-  .output-container.mobile > div {
-    border-left: none !important;
-    border-top: 1px solid var(--color-border) !important;
-    border-radius: 16px 16px 0 0 !important;
-  }
-  
   /* Hide hover trigger zones on mobile (use buttons instead) */
   .hover-trigger-zone {
     display: none !important;
-  }
-  
-  /* Adjust editor margins for mobile panels */
-  .editor-area.mobile-sidebar-open {
-    margin-top: min(50vh, 400px) !important;
-    margin-right: 0 !important;
-  }
-  
-  .editor-area.mobile-output-open {
-    margin-bottom: min(50vh, 400px) !important;
-    margin-left: 0 !important;
   }
   
   /* Larger touch targets for toolbar */

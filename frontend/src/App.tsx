@@ -40,11 +40,8 @@ import {
 /** Default width for the sidebar panel in pixels */
 const SIDEBAR_WIDTH = 280;
 
-/** Default width for the output panel in pixels (now on left side) */
-const OUTPUT_WIDTH = 400;
-
-/** Default height for mobile panels (50vh capped at 400px) */
-const MOBILE_PANEL_HEIGHT = '50vh';
+/** Default height for the output panel in pixels (always at bottom) */
+const OUTPUT_HEIGHT = 250;
 
 /**
  * Go backend URL for code execution.
@@ -200,26 +197,26 @@ const styles = {
   outputTrigger: {
     position: 'absolute',
     left: 0,
-    top: 0,
+    right: 0,
     bottom: 0,
-    width: '20px',
+    height: '20px',
     zIndex: 40,
   } as React.CSSProperties,
   outputIndicator: {
     position: 'absolute',
-    left: '4px',
-    top: '50%',
-    transform: 'translateY(-50%)',
-    width: '4px',
-    height: '80px',
-    background: 'linear-gradient(to bottom, transparent, var(--color-accent), transparent)',
+    left: '50%',
+    bottom: '4px',
+    transform: 'translateX(-50%)',
+    width: '80px',
+    height: '4px',
+    background: 'linear-gradient(to right, transparent, var(--color-accent), transparent)',
     borderRadius: '9999px',
     opacity: 0.5,
   } as React.CSSProperties,
   outputPanel: {
     position: 'absolute',
     left: 0,
-    top: 0,
+    right: 0,
     bottom: 0,
     zIndex: 30,
     transition: 'transform 0.3s ease-out',
@@ -227,8 +224,8 @@ const styles = {
   outputInner: {
     height: '100%',
     backgroundColor: 'var(--color-surface)',
-    borderRight: '1px solid var(--color-border)',
-    boxShadow: '25px 0 50px -12px rgba(0, 0, 0, 0.8)',
+    borderTop: '1px solid var(--color-border)',
+    boxShadow: '0 -25px 50px -12px rgba(0, 0, 0, 0.8)',
     display: 'flex',
     flexDirection: 'column',
     position: 'relative',
@@ -677,7 +674,7 @@ export default function App() {
 
       {/* Main content area */}
       <div style={styles.mainContent}>
-        {/* Output hover trigger zone - on LEFT edge when output exists (desktop only) */}
+        {/* Output hover trigger zone - on BOTTOM edge when output exists (desktop only) */}
         {output && !outputVisible && !isMobile && (
           <div 
             className="hover-trigger-zone"
@@ -688,40 +685,19 @@ export default function App() {
           </div>
         )}
 
-        {/* Output panel - LEFT on desktop, BOTTOM on mobile */}
+        {/* Output panel - BOTTOM on both desktop and mobile */}
         {output && (
           <div 
             className={`output-container ${isMobile ? 'mobile' : ''}`}
             style={{
               ...styles.outputPanel,
-              // Mobile: full width, fixed height, bottom position
-              // Desktop: fixed width, full height, left position  
-              ...(isMobile ? {
-                width: '100%',
-                height: MOBILE_PANEL_HEIGHT,
-                maxHeight: '400px',
-                left: 0,
-                right: 0,
-                top: 'auto',
-                bottom: 0,
-                transform: outputVisible ? 'translateY(0)' : 'translateY(100%)',
-              } : {
-                width: OUTPUT_WIDTH,
-                transform: outputVisible ? 'translateX(0)' : 'translateX(-100%)',
-              }),
+              height: OUTPUT_HEIGHT,
+              transform: outputVisible ? 'translateY(0)' : 'translateY(100%)',
             }}
             onMouseEnter={() => !isMobile && setOutputHovered(true)}
             onMouseLeave={() => !isMobile && setOutputHovered(false)}
           >
-            <div style={{
-              ...styles.outputInner,
-              // Mobile: top border instead of right border
-              ...(isMobile ? {
-                borderLeft: 'none',
-                borderTop: '1px solid var(--color-border)',
-                borderRadius: '16px 16px 0 0',
-              } : {}),
-            }}>
+            <div style={styles.outputInner}>
               {/* Pin button - hide on mobile since we use header buttons */}
               {!isMobile && (
                 <button
@@ -750,23 +726,13 @@ export default function App() {
 
         {/* Editor area - takes full space, shifts when panels are visible */}
         <div 
-          className={`editor-area ${isMobile && sidebarVisible ? 'mobile-sidebar-open' : ''} ${isMobile && outputVisible ? 'mobile-output-open' : ''}`}
+          className="editor-area"
           style={{
             ...styles.editorArea,
-            // Mobile: margins on top/bottom for panels
-            // Desktop: margins on left/right for panels
-            ...(isMobile ? {
-              marginTop: sidebarVisible ? 'min(50vh, 400px)' : 0,
-              marginBottom: outputVisible ? 'min(50vh, 400px)' : 0,
-              marginLeft: 0,
-              marginRight: 0,
-            } : {
-              marginLeft: outputVisible ? OUTPUT_WIDTH : 0,
-              marginRight: sidebarVisible ? SIDEBAR_WIDTH : 0,
-            }),
-            transition: isMobile 
-              ? 'margin-top 0.3s ease-out, margin-bottom 0.3s ease-out'
-              : 'margin-left 0.3s ease-out, margin-right 0.3s ease-out',
+            // Sidebar on LEFT, Output on BOTTOM
+            marginLeft: sidebarVisible ? SIDEBAR_WIDTH : 0,
+            marginBottom: outputVisible ? OUTPUT_HEIGHT : 0,
+            transition: 'margin-left 0.3s ease-out, margin-bottom 0.3s ease-out',
           }}
         >
           {isSettingsFile ? (
@@ -806,67 +772,32 @@ export default function App() {
           )}
         </div>
 
-        {/* Sidebar hover trigger zone - on RIGHT edge (desktop only) */}
+        {/* Sidebar hover trigger zone - on LEFT edge (desktop only) */}
         {!isMobile && (
           <div 
             className="hover-trigger-zone"
-            style={{
-              ...styles.sidebarTrigger,
-              left: 'auto',
-              right: 0,
-            }}
+            style={styles.sidebarTrigger}
             onMouseEnter={() => setSidebarHovered(true)}
           >
             {/* Visual indicator - only show when sidebar is hidden */}
             {!sidebarVisible && (
-              <div style={{
-                ...styles.sidebarIndicator,
-                left: 'auto',
-                right: '4px',
-              }} className="animate-pulse" />
+              <div style={styles.sidebarIndicator} className="animate-pulse" />
             )}
           </div>
         )}
 
-        {/* Sidebar panel - RIGHT on desktop, TOP on mobile */}
+        {/* Sidebar panel - LEFT side (both desktop and mobile) */}
         <div 
-          className={`sidebar-container ${isMobile ? 'mobile' : ''}`}
+          className="sidebar-container"
           style={{
             ...styles.sidebarPanel,
-            // Mobile: full width, fixed height, top position
-            // Desktop: fixed width, full height, right position
-            ...(isMobile ? {
-              width: '100%',
-              height: MOBILE_PANEL_HEIGHT,
-              maxHeight: '400px',
-              left: 0,
-              right: 0,
-              top: 0,
-              bottom: 'auto',
-              transform: sidebarVisible ? 'translateY(0)' : 'translateY(-100%)',
-            } : {
-              left: 'auto',
-              right: 0,
-              width: SIDEBAR_WIDTH,
-              transform: sidebarVisible ? 'translateX(0)' : 'translateX(100%)',
-            }),
+            width: SIDEBAR_WIDTH,
+            transform: sidebarVisible ? 'translateX(0)' : 'translateX(-100%)',
           }}
           onMouseEnter={() => !isMobile && setSidebarHovered(true)}
           onMouseLeave={() => !isMobile && setSidebarHovered(false)}
         >
-          <div style={{
-            ...styles.sidebarInner,
-            // Mobile: bottom border instead of left border
-            ...(isMobile ? {
-              borderRight: 'none',
-              borderLeft: 'none',
-              borderBottom: '1px solid var(--color-border)',
-              borderRadius: '0 0 16px 16px',
-            } : {
-              borderRight: 'none',
-              borderLeft: '1px solid var(--color-border)',
-            }),
-          }}>
+          <div style={styles.sidebarInner}>
             {/* Pin button - hide on mobile since we use header buttons */}
             {!isMobile && (
               <button
