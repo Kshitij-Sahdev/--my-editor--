@@ -21,6 +21,7 @@ import Sidebar from "./components/Sidebar";
 import Editor from "./components/Editor";
 import Output from "./components/Output";
 import Settings from "./components/Settings";
+import StatusBar from "./components/StatusBar";
 import { useIsMobile } from "./hooks/useIsMobile";
 import type { AppState, FileItem, Commit, Language, RunOutput, EditorSettings } from "./types";
 import {
@@ -89,6 +90,7 @@ const styles = {
     width: '100vw',
     backgroundColor: 'var(--color-bg)',
     overflow: 'hidden',
+    paddingBottom: '28px', // Space for fixed status bar
   } as React.CSSProperties,
   mainContent: {
     flex: 1,
@@ -99,6 +101,7 @@ const styles = {
   editorArea: {
     position: 'absolute',
     inset: 0,
+    zIndex: 1,
   } as React.CSSProperties,
   emptyState: {
     height: '100%',
@@ -898,6 +901,12 @@ export default function App() {
           </div>
         </div>
       </div>
+
+      {/* Fixed status bar - always at the absolute bottom */}
+      <StatusBar 
+        language={activeFile?.language || null}
+        hasFile={!!activeFile}
+      />
     </div>
   );
 }

@@ -231,33 +231,6 @@ const styles = {
     minHeight: 0,
     position: 'relative',
   } as React.CSSProperties,
-  statusBar: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '8px 16px',
-    borderTop: '1px solid var(--color-border-subtle)',
-    backgroundColor: 'var(--color-surface-2)',
-    fontSize: '10px',
-    color: 'var(--color-text-muted)',
-    fontFamily: 'var(--font-mono)',
-  } as React.CSSProperties,
-  statusBarLeft: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '16px',
-  } as React.CSSProperties,
-  statusBarRight: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '16px',
-  } as React.CSSProperties,
-  statusKbd: {
-    padding: '2px 4px',
-    backgroundColor: 'var(--color-surface)',
-    border: '1px solid var(--color-border)',
-    borderRadius: '4px',
-  } as React.CSSProperties,
 };
 
 // =============================================================================
@@ -623,29 +596,6 @@ export default function Editor({
 
       {/* CodeMirror editor container */}
       <div ref={containerRef} style={styles.editorContainer} />
-
-      {/* Status bar */}
-      <div style={styles.statusBar}>
-        <div style={styles.statusBarLeft}>
-          <span>{LANGUAGE_LABELS[language]}</span>
-          {!isRunnable && (
-            <span style={{ color: 'var(--color-warning)' }}>
-              Plain text mode - no execution available
-            </span>
-          )}
-        </div>
-        <div style={styles.statusBarRight}>
-          {isRunnable && (
-            <span>
-              Run:{" "}
-              <kbd style={styles.statusKbd}>
-                Ctrl+Enter
-              </kbd>
-            </span>
-          )}
-          <span>UTF-8</span>
-        </div>
-      </div>
     </div>
   );
 }
