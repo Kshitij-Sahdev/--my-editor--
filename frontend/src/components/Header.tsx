@@ -2,6 +2,7 @@
  * Header.tsx - Top navigation bar
  *
  * Displays the app logo/name and the primary "Run Code" button.
+ * On mobile/portrait mode, also shows toggle buttons for Files and Output panels.
  * The run button:
  * - Is disabled when no runnable file is selected
  * - Shows a spinner while code is executing
@@ -10,7 +11,7 @@
 
 "use client";
 
-import { Play, Terminal } from "lucide-react";
+import { Play, Terminal, FolderOpen, TerminalSquare } from "lucide-react";
 import type { FileItem } from "../types";
 import { RUNNABLE_LANGUAGES } from "../types";
 
@@ -25,6 +26,18 @@ interface HeaderProps {
   onRun: () => void;
   /** Whether code is currently being executed */
   isRunning: boolean;
+  /** Whether the app is in mobile/portrait mode */
+  isMobile?: boolean;
+  /** Whether sidebar is visible (for mobile toggle) */
+  sidebarVisible?: boolean;
+  /** Toggle sidebar visibility (for mobile) */
+  onToggleSidebar?: () => void;
+  /** Whether output is visible (for mobile toggle) */
+  outputVisible?: boolean;
+  /** Toggle output visibility (for mobile) */
+  onToggleOutput?: () => void;
+  /** Whether output exists (to show output button) */
+  hasOutput?: boolean;
 }
 
 // =============================================================================
@@ -36,11 +49,12 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '0 20px',
+    padding: '0 var(--spacing-md, 20px)',
     height: '56px',
     backgroundColor: 'var(--color-surface)',
     borderBottom: '1px solid var(--color-border)',
     flexShrink: 0,
+    gap: 'var(--spacing-md, 16px)',
   } as React.CSSProperties,
   logoContainer: {
     display: 'flex',
@@ -67,16 +81,28 @@ const styles = {
   } as React.CSSProperties,
   logoName: {
     fontWeight: 700,
-    fontSize: '14px',
+    fontSize: 'var(--font-size-base, 14px)',
     color: 'var(--color-accent)',
     letterSpacing: '-0.025em',
     fontFamily: 'var(--font-mono)',
     filter: 'drop-shadow(0 0 10px var(--color-accent))',
   } as React.CSSProperties,
   logoVersion: {
-    fontSize: '10px',
+    fontSize: 'var(--font-size-xs, 10px)',
     color: 'var(--color-text-muted)',
     fontFamily: 'var(--font-mono)',
+  } as React.CSSProperties,
+  // Mobile toggle buttons container
+  mobileControls: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 'var(--spacing-sm, 8px)',
+  } as React.CSSProperties,
+  // Right side controls (run button + mobile toggles)
+  rightControls: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 'var(--spacing-sm, 8px)',
   } as React.CSSProperties,
   runButton: {
     display: 'flex',
@@ -84,7 +110,7 @@ const styles = {
     gap: '8px',
     padding: '10px 20px',
     borderRadius: '12px',
-    fontSize: '14px',
+    fontSize: 'var(--font-size-base, 14px)',
     fontWeight: 600,
     cursor: 'pointer',
     transition: 'all 0.2s',
@@ -121,7 +147,7 @@ const styles = {
     padding: '4px 8px',
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     borderRadius: '6px',
-    fontSize: '10px',
+    fontSize: 'var(--font-size-xs, 10px)',
     fontFamily: 'var(--font-mono)',
     backdropFilter: 'blur(4px)',
   } as React.CSSProperties,
@@ -131,7 +157,17 @@ const styles = {
 // COMPONENT
 // =============================================================================
 
-export default function Header({ activeFile, onRun, isRunning }: HeaderProps) {
+export default function Header({ 
+  activeFile, 
+  onRun, 
+  isRunning,
+  isMobile = false,
+  sidebarVisible = false,
+  onToggleSidebar,
+  outputVisible = false,
+  onToggleOutput,
+  hasOutput = false,
+}: HeaderProps) {
   /**
    * Check if the current file's language can be executed.
    * Only Python, C++, Java, Go, and JavaScript are runnable.
@@ -157,32 +193,62 @@ export default function Header({ activeFile, onRun, isRunning }: HeaderProps) {
         </div>
       </div>
 
-      {/* Right side: Run button */}
-      <button
-        onClick={onRun}
-        disabled={isRunning || !canRun}
-        style={{
-          ...styles.runButton,
-          ...(canRun && !isRunning ? styles.runButtonEnabled : styles.runButtonDisabled),
-        }}
-        className={canRun && !isRunning ? 'hover-lift' : ''}
-      >
-        {isRunning ? (
-          // Spinning loader while executing
-          <span style={styles.spinner} className="animate-spin" />
-        ) : (
-          // Play icon with glow
-          <Play size={16} fill="currentColor" style={styles.playIcon} />
-        )}
-        <span style={styles.buttonText}>{isRunning ? "Running..." : "Run"}</span>
+      {/* Right side: Mobile controls + Run button */}
+      <div style={styles.rightControls}>
+        {/* Mobile toggle buttons - only visible on mobile/portrait */}
+        {isMobile && (
+          <div style={styles.mobileControls} className="mobile-only">
+            {/* Files toggle button */}
+            <button
+              onClick={onToggleSidebar}
+              className={`mobile-toggle-btn ${sidebarVisible ? 'active' : ''}`}
+              title="Toggle Files"
+              aria-label="Toggle file explorer"
+            >
+              <FolderOpen size={20} />
+            </button>
 
-        {/* Keyboard shortcut hint */}
-        {canRun && !isRunning && (
-          <kbd style={{ ...styles.kbd, display: 'inline-flex' }}>
-            ⌘↵
-          </kbd>
+            {/* Output toggle button - only show if there's output */}
+            {hasOutput && (
+              <button
+                onClick={onToggleOutput}
+                className={`mobile-toggle-btn ${outputVisible ? 'active' : ''}`}
+                title="Toggle Output"
+                aria-label="Toggle output panel"
+              >
+                <TerminalSquare size={20} />
+              </button>
+            )}
+          </div>
         )}
-      </button>
+
+        {/* Run button */}
+        <button
+          onClick={onRun}
+          disabled={isRunning || !canRun}
+          style={{
+            ...styles.runButton,
+            ...(canRun && !isRunning ? styles.runButtonEnabled : styles.runButtonDisabled),
+          }}
+          className={canRun && !isRunning ? 'hover-lift' : ''}
+        >
+          {isRunning ? (
+            // Spinning loader while executing
+            <span style={styles.spinner} className="animate-spin" />
+          ) : (
+            // Play icon with glow
+            <Play size={16} fill="currentColor" style={styles.playIcon} />
+          )}
+          <span style={styles.buttonText}>{isRunning ? "Running..." : "Run"}</span>
+
+          {/* Keyboard shortcut hint - hide on mobile */}
+          {canRun && !isRunning && !isMobile && (
+            <kbd style={{ ...styles.kbd, display: 'inline-flex' }}>
+              ⌘↵
+            </kbd>
+          )}
+        </button>
+      </div>
     </header>
   );
 }

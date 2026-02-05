@@ -20,6 +20,21 @@
   --font-sans: "Inter", system-ui, -apple-system, sans-serif;
   --font-mono: "JetBrains Mono", "Fira Code", "SF Mono", "Consolas", monospace;
   
+  /* Responsive font sizing - scales with viewport */
+  --font-size-base: clamp(14px, 1.2vw + 8px, 20px);
+  --font-size-code: clamp(14px, 1.4vw + 8px, 24px);
+  --font-size-sm: clamp(10px, 0.9vw + 6px, 14px);
+  --font-size-xs: clamp(9px, 0.8vw + 5px, 12px);
+  
+  /* Responsive spacing */
+  --spacing-xs: clamp(4px, 0.5vw, 8px);
+  --spacing-sm: clamp(6px, 0.75vw, 12px);
+  --spacing-md: clamp(10px, 1vw, 16px);
+  --spacing-lg: clamp(16px, 1.5vw, 24px);
+  
+  /* Touch-friendly sizing for mobile */
+  --touch-target: clamp(40px, 5vh, 48px);
+  
   /* Background colors (AMOLED black) */
   --color-bg: #000000;
   --color-surface: #050505;
@@ -182,7 +197,7 @@ body {
 
 .cm-editor {
   height: 100% !important;
-  font-size: 14px !important;
+  font-size: var(--font-size-code) !important;
   background: transparent !important;
 }
 
@@ -190,7 +205,7 @@ body {
   font-family: var(--font-mono) !important;
   line-height: 1.7 !important;
   overflow: auto !important;
-  padding: 16px 0 !important;
+  padding: var(--spacing-md) 0 !important;
 }
 
 /* Ensure selection is visible on whitespace and empty lines */
@@ -620,4 +635,115 @@ input:focus, textarea:focus {
 
 [data-radix-popper-content-wrapper] {
   z-index: 50 !important;
+}
+
+/* =============================================================================
+   MOBILE / PORTRAIT MODE STYLES
+   ============================================================================= */
+
+/* Mobile toggle buttons in header */
+.mobile-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--touch-target);
+  height: var(--touch-target);
+  border-radius: 12px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-toggle-btn:hover,
+.mobile-toggle-btn:active {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+  border-color: var(--color-accent);
+}
+
+.mobile-toggle-btn.active {
+  background: var(--color-accent-subtle);
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 12px var(--color-accent-glow);
+}
+
+/* Portrait/Mobile panel positioning */
+@media (orientation: portrait), (max-width: 768px) {
+  /* Sidebar slides from TOP on mobile */
+  .sidebar-container.mobile {
+    left: 0 !important;
+    right: 0 !important;
+    top: 0 !important;
+    bottom: auto !important;
+    width: 100% !important;
+    height: 50vh !important;
+    max-height: 400px !important;
+  }
+  
+  .sidebar-container.mobile > div {
+    border-right: none !important;
+    border-bottom: 1px solid var(--color-border) !important;
+    border-radius: 0 0 16px 16px !important;
+  }
+  
+  /* Output slides from BOTTOM on mobile */
+  .output-container.mobile {
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    top: auto !important;
+    width: 100% !important;
+    height: 50vh !important;
+    max-height: 400px !important;
+  }
+  
+  .output-container.mobile > div {
+    border-left: none !important;
+    border-top: 1px solid var(--color-border) !important;
+    border-radius: 16px 16px 0 0 !important;
+  }
+  
+  /* Hide hover trigger zones on mobile (use buttons instead) */
+  .hover-trigger-zone {
+    display: none !important;
+  }
+  
+  /* Adjust editor margins for mobile panels */
+  .editor-area.mobile-sidebar-open {
+    margin-top: min(50vh, 400px) !important;
+    margin-right: 0 !important;
+  }
+  
+  .editor-area.mobile-output-open {
+    margin-bottom: min(50vh, 400px) !important;
+    margin-left: 0 !important;
+  }
+  
+  /* Larger touch targets for toolbar */
+  .toolbar-btn {
+    min-width: var(--touch-target);
+    min-height: var(--touch-target);
+  }
+}
+
+/* Desktop - hide mobile toggle buttons, show hover zones */
+@media (orientation: landscape) and (min-width: 769px) {
+  .mobile-only {
+    display: none !important;
+  }
+}
+
+/* Show mobile controls on portrait/small screens */
+@media (orientation: portrait), (max-width: 768px) {
+  .desktop-only {
+    display: none !important;
+  }
+  
+  .mobile-only {
+    display: flex !important;
+  }
 }

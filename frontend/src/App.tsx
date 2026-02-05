@@ -10,6 +10,7 @@
  * - State changes trigger auto-save to localStorage
  * - Child components receive callbacks to update state
  * - The Go backend at localhost:8080/run handles code execution
+ * - Responsive layout adapts to mobile/portrait orientation
  */
 
 "use client";
@@ -20,6 +21,7 @@ import Sidebar from "./components/Sidebar";
 import Editor from "./components/Editor";
 import Output from "./components/Output";
 import Settings from "./components/Settings";
+import { useIsMobile } from "./hooks/useIsMobile";
 import type { AppState, FileItem, Commit, Language, RunOutput, EditorSettings } from "./types";
 import {
   loadState,
@@ -39,6 +41,9 @@ const SIDEBAR_WIDTH = 280;
 
 /** Default width for the output panel in pixels (now on left side) */
 const OUTPUT_WIDTH = 400;
+
+/** Default height for mobile panels (50vh capped at 400px) */
+const MOBILE_PANEL_HEIGHT = '50vh';
 
 /**
  * Go backend URL for code execution.
@@ -274,6 +279,9 @@ export default function App() {
 
   /** Whether the output panel is being hovered */
   const [outputHovered, setOutputHovered] = useState(false);
+
+  /** Detect mobile/portrait mode */
+  const isMobile = useIsMobile();
 
   /**
    * Ref to track current editor content without triggering re-renders.
@@ -592,6 +600,21 @@ export default function App() {
   const clearOutput = useCallback(() => setOutput(null), []);
 
   // ---------------------------------------------------------------------------
+  // MOBILE TOGGLE HANDLERS
+  // ---------------------------------------------------------------------------
+
+  // Mobile toggle handlers - must be defined before any early returns
+  const handleToggleSidebar = useCallback(() => {
+    setSidebarPinned(prev => !prev);
+    setSidebarHovered(false);
+  }, []);
+
+  const handleToggleOutput = useCallback(() => {
+    setOutputPinned(prev => !prev);
+    setOutputHovered(false);
+  }, []);
+
+  // ---------------------------------------------------------------------------
   // SETTINGS
   // ---------------------------------------------------------------------------
 
@@ -636,18 +659,25 @@ export default function App() {
 
   return (
     <div style={styles.appContainer} className="animate-fade-in">
-      {/* Top header with logo and run button */}
+      {/* Top header with logo, mobile toggles, and run button */}
       <Header
         activeFile={activeFile || null}
         onRun={runCode}
         isRunning={isRunning}
+        isMobile={isMobile}
+        sidebarVisible={sidebarVisible}
+        onToggleSidebar={handleToggleSidebar}
+        outputVisible={outputVisible}
+        onToggleOutput={handleToggleOutput}
+        hasOutput={!!output}
       />
 
       {/* Main content area */}
       <div style={styles.mainContent}>
-        {/* Output hover trigger zone - on LEFT edge when output exists */}
-        {output && !outputVisible && (
+        {/* Output hover trigger zone - on LEFT edge when output exists (desktop only) */}
+        {output && !outputVisible && !isMobile && (
           <div 
+            className="hover-trigger-zone"
             style={styles.outputTrigger}
             onMouseEnter={() => setOutputHovered(true)}
           >
@@ -655,33 +685,56 @@ export default function App() {
           </div>
         )}
 
-        {/* Output panel - NOW ON LEFT SIDE */}
+        {/* Output panel - LEFT on desktop, BOTTOM on mobile */}
         {output && (
           <div 
-            className="output-container"
+            className={`output-container ${isMobile ? 'mobile' : ''}`}
             style={{
               ...styles.outputPanel,
-              width: OUTPUT_WIDTH,
-              transform: outputVisible ? 'translateX(0)' : 'translateX(-100%)',
+              // Mobile: full width, fixed height, bottom position
+              // Desktop: fixed width, full height, left position  
+              ...(isMobile ? {
+                width: '100%',
+                height: MOBILE_PANEL_HEIGHT,
+                maxHeight: '400px',
+                left: 0,
+                right: 0,
+                top: 'auto',
+                bottom: 0,
+                transform: outputVisible ? 'translateY(0)' : 'translateY(100%)',
+              } : {
+                width: OUTPUT_WIDTH,
+                transform: outputVisible ? 'translateX(0)' : 'translateX(-100%)',
+              }),
             }}
-            onMouseEnter={() => setOutputHovered(true)}
-            onMouseLeave={() => setOutputHovered(false)}
+            onMouseEnter={() => !isMobile && setOutputHovered(true)}
+            onMouseLeave={() => !isMobile && setOutputHovered(false)}
           >
-            <div style={styles.outputInner}>
-              {/* Pin button */}
-              <button
-                onClick={() => setOutputPinned(!outputPinned)}
-                style={{
-                  ...styles.pinButton,
-                  ...styles.outputPinButton,
-                  ...(outputPinned ? styles.pinButtonActive : styles.pinButtonInactive),
-                }}
-                title={outputPinned ? 'Unpin output' : 'Pin output'}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 17v5M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z" />
-                </svg>
-              </button>
+            <div style={{
+              ...styles.outputInner,
+              // Mobile: top border instead of right border
+              ...(isMobile ? {
+                borderLeft: 'none',
+                borderTop: '1px solid var(--color-border)',
+                borderRadius: '16px 16px 0 0',
+              } : {}),
+            }}>
+              {/* Pin button - hide on mobile since we use header buttons */}
+              {!isMobile && (
+                <button
+                  onClick={() => setOutputPinned(!outputPinned)}
+                  style={{
+                    ...styles.pinButton,
+                    ...styles.outputPinButton,
+                    ...(outputPinned ? styles.pinButtonActive : styles.pinButtonInactive),
+                  }}
+                  title={outputPinned ? 'Unpin output' : 'Pin output'}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 17v5M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z" />
+                  </svg>
+                </button>
+              )}
               
               <Output
                 stdout={output.stdout}
@@ -693,12 +746,26 @@ export default function App() {
         )}
 
         {/* Editor area - takes full space, shifts when panels are visible */}
-        <div style={{
-          ...styles.editorArea,
-          marginLeft: outputVisible ? OUTPUT_WIDTH : 0,
-          marginRight: sidebarVisible ? SIDEBAR_WIDTH : 0,
-          transition: 'margin-left 0.3s ease-out, margin-right 0.3s ease-out',
-        }}>
+        <div 
+          className={`editor-area ${isMobile && sidebarVisible ? 'mobile-sidebar-open' : ''} ${isMobile && outputVisible ? 'mobile-output-open' : ''}`}
+          style={{
+            ...styles.editorArea,
+            // Mobile: margins on top/bottom for panels
+            // Desktop: margins on left/right for panels
+            ...(isMobile ? {
+              marginTop: sidebarVisible ? 'min(50vh, 400px)' : 0,
+              marginBottom: outputVisible ? 'min(50vh, 400px)' : 0,
+              marginLeft: 0,
+              marginRight: 0,
+            } : {
+              marginLeft: outputVisible ? OUTPUT_WIDTH : 0,
+              marginRight: sidebarVisible ? SIDEBAR_WIDTH : 0,
+            }),
+            transition: isMobile 
+              ? 'margin-top 0.3s ease-out, margin-bottom 0.3s ease-out'
+              : 'margin-left 0.3s ease-out, margin-right 0.3s ease-out',
+          }}
+        >
           {isSettingsFile ? (
             // Show settings panel for settings.conf
             <Settings
@@ -729,63 +796,89 @@ export default function App() {
                   No file selected
                 </p>
                 <p style={styles.emptyStateSubtitle}>
-                  Hover left edge for files
+                  {isMobile ? 'Tap 📁 for files' : 'Hover left edge for files'}
                 </p>
               </div>
             </div>
           )}
         </div>
 
-        {/* Sidebar hover trigger zone - on RIGHT edge now */}
-        <div 
-          style={{
-            ...styles.sidebarTrigger,
-            left: 'auto',
-            right: 0,
-          }}
-          onMouseEnter={() => setSidebarHovered(true)}
-        >
-          {/* Visual indicator - only show when sidebar is hidden */}
-          {!sidebarVisible && (
-            <div style={{
-              ...styles.sidebarIndicator,
+        {/* Sidebar hover trigger zone - on RIGHT edge (desktop only) */}
+        {!isMobile && (
+          <div 
+            className="hover-trigger-zone"
+            style={{
+              ...styles.sidebarTrigger,
               left: 'auto',
-              right: '4px',
-            }} className="animate-pulse" />
-          )}
-        </div>
+              right: 0,
+            }}
+            onMouseEnter={() => setSidebarHovered(true)}
+          >
+            {/* Visual indicator - only show when sidebar is hidden */}
+            {!sidebarVisible && (
+              <div style={{
+                ...styles.sidebarIndicator,
+                left: 'auto',
+                right: '4px',
+              }} className="animate-pulse" />
+            )}
+          </div>
+        )}
 
-        {/* Sidebar panel - NOW ON RIGHT SIDE */}
+        {/* Sidebar panel - RIGHT on desktop, TOP on mobile */}
         <div 
-          className="sidebar-container"
+          className={`sidebar-container ${isMobile ? 'mobile' : ''}`}
           style={{
             ...styles.sidebarPanel,
-            left: 'auto',
-            right: 0,
-            width: SIDEBAR_WIDTH,
-            transform: sidebarVisible ? 'translateX(0)' : 'translateX(100%)',
+            // Mobile: full width, fixed height, top position
+            // Desktop: fixed width, full height, right position
+            ...(isMobile ? {
+              width: '100%',
+              height: MOBILE_PANEL_HEIGHT,
+              maxHeight: '400px',
+              left: 0,
+              right: 0,
+              top: 0,
+              bottom: 'auto',
+              transform: sidebarVisible ? 'translateY(0)' : 'translateY(-100%)',
+            } : {
+              left: 'auto',
+              right: 0,
+              width: SIDEBAR_WIDTH,
+              transform: sidebarVisible ? 'translateX(0)' : 'translateX(100%)',
+            }),
           }}
-          onMouseEnter={() => setSidebarHovered(true)}
-          onMouseLeave={() => setSidebarHovered(false)}
+          onMouseEnter={() => !isMobile && setSidebarHovered(true)}
+          onMouseLeave={() => !isMobile && setSidebarHovered(false)}
         >
           <div style={{
             ...styles.sidebarInner,
-            borderRight: 'none',
-            borderLeft: '1px solid var(--color-border)',
+            // Mobile: bottom border instead of left border
+            ...(isMobile ? {
+              borderRight: 'none',
+              borderLeft: 'none',
+              borderBottom: '1px solid var(--color-border)',
+              borderRadius: '0 0 16px 16px',
+            } : {
+              borderRight: 'none',
+              borderLeft: '1px solid var(--color-border)',
+            }),
           }}>
-            {/* Pin button */}
-            <button
-              onClick={() => setSidebarPinned(!sidebarPinned)}
-              style={{
-                ...styles.pinButton,
-                ...(sidebarPinned ? styles.pinButtonActive : styles.pinButtonInactive),
-              }}
-              title={sidebarPinned ? 'Unpin sidebar' : 'Pin sidebar'}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 17v5M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z" />
-              </svg>
-            </button>
+            {/* Pin button - hide on mobile since we use header buttons */}
+            {!isMobile && (
+              <button
+                onClick={() => setSidebarPinned(!sidebarPinned)}
+                style={{
+                  ...styles.pinButton,
+                  ...(sidebarPinned ? styles.pinButtonActive : styles.pinButtonInactive),
+                }}
+                title={sidebarPinned ? 'Unpin sidebar' : 'Pin sidebar'}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 17v5M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z" />
+                </svg>
+              </button>
+            )}
             
             <Sidebar
               files={state.files}
