@@ -23,8 +23,13 @@
     "@radix-ui/react-select": "2.1.4",
     "codemirror": "^6.0.1",
     "lucide-react": "^0.454.0",
+    "magic-snowflakes": "^7.0.2",
     "react": "^19",
-    "react-dom": "^19"
+    "react-dom": "^19",
+    "react-markdown": "^10.1.0",
+    "rehype-highlight": "^7.0.2",
+    "rehype-raw": "^7.0.0",
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@types/node": "25.1.0",

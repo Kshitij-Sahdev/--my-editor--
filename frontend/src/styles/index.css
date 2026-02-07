@@ -9,7 +9,19 @@
    FONTS - Import from Google Fonts
    ============================================================================= */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Fira+Code:wght@400;500&family=Source+Code+Pro:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inconsolata:wght@400;500&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Fira+Code:wght@400;500&family=Roboto+Mono:wght@400;500&family=Source+Code+Pro:wght@400;500&family=Space+Mono:wght@400;700&family=Ubuntu+Mono:wght@400;700&display=swap');
+
+/* Highlight.js theme for Markdown code blocks (atom-one-dark inspired) */
+@import url('https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css');
+
+/* IBM 3270 - Classic IBM mainframe terminal font (self-hosted) */
+@font-face {
+  font-family: '3270';
+  src: url('/fonts/3270.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
 
 /* =============================================================================
    THEME TOKENS - Dark IDE color palette
@@ -168,6 +180,289 @@ body {
 }
 
 /* =============================================================================
+   SETTINGS PANEL STYLES
+   ============================================================================= */
+
+/* Settings panel entrance animation */
+@keyframes settings-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.settings-container {
+  animation: settings-fade-in 0.3s ease-out;
+}
+
+/* Remove tap highlight on mobile */
+.settings-option {
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+  user-select: none;
+}
+
+/* Theme option hover */
+.theme-option {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.theme-option:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-text-muted) !important;
+}
+
+.theme-option:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.theme-option.active {
+  border-color: var(--color-accent) !important;
+}
+
+.theme-option.active:hover {
+  border-color: var(--color-accent) !important;
+}
+
+/* Font option hover */
+.font-option {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.font-option:hover {
+  transform: translateX(4px);
+  border-color: var(--color-text-muted) !important;
+  background-color: var(--color-surface-hover) !important;
+}
+
+.font-option:active {
+  transform: translateX(2px) scale(0.99);
+}
+
+.font-option.active {
+  border-color: var(--color-accent) !important;
+}
+
+.font-option.active:hover {
+  border-color: var(--color-accent) !important;
+}
+
+/* Toggle switch animation */
+.toggle-switch {
+  -webkit-tap-highlight-color: transparent;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.toggle-switch:hover {
+  transform: scale(1.05);
+}
+
+.toggle-switch:active {
+  transform: scale(0.95);
+}
+
+/* Option row hover */
+.option-row {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.option-row:hover {
+  background-color: var(--color-surface-hover) !important;
+  transform: translateX(4px);
+  border-color: var(--color-text-muted) !important;
+}
+
+/* Check icon animation */
+@keyframes check-pop {
+  0% { transform: scale(0) rotate(-45deg); opacity: 0; }
+  50% { transform: scale(1.2) rotate(0deg); }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+.check-icon {
+  animation: check-pop 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+/* Button animations */
+.settings-btn {
+  -webkit-tap-highlight-color: transparent;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.settings-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.settings-btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+}
+
+.settings-btn.reset-btn:hover {
+  color: var(--color-text-secondary);
+  border-color: var(--color-text-muted);
+}
+
+/* Section title animation */
+.section-title {
+  position: relative;
+  display: inline-block;
+}
+
+.section-title::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -4px;
+  width: 0;
+  height: 2px;
+  background: var(--color-accent);
+  transition: width 0.3s ease;
+}
+
+.section:hover .section-title::after {
+  width: 100%;
+}
+
+/* Slider styles */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+}
+
+input[type="range"]::-webkit-slider-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--color-surface-2);
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  cursor: pointer;
+  margin-top: -6px;
+  transition: transform 0.15s ease;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+
+input[type="range"]::-webkit-slider-thumb:active {
+  transform: scale(1.05);
+}
+
+input[type="range"]::-moz-range-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--color-surface-2);
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  cursor: pointer;
+  border: none;
+  transition: transform 0.15s ease;
+}
+
+input[type="range"]::-moz-range-thumb:hover {
+  transform: scale(1.15);
+}
+
+/* Select dropdown */
+.settings-select {
+  transition: all 0.2s ease;
+}
+
+.settings-select:hover {
+  border-color: var(--color-text-muted);
+}
+
+.settings-select:focus {
+  border-color: var(--color-accent);
+  outline: none;
+}
+
+/* =============================================================================
+   MARKDOWN PREVIEW STYLES
+   ============================================================================= */
+
+/* Override highlight.js background for our theme */
+.hljs {
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+/* Markdown code block styling */
+pre code.hljs {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* Syntax colors for markdown code blocks */
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-built_in {
+  color: var(--neon-pink);
+}
+
+.hljs-string,
+.hljs-attr {
+  color: var(--neon-green);
+}
+
+.hljs-number,
+.hljs-literal {
+  color: var(--neon-orange);
+}
+
+.hljs-comment {
+  color: #666;
+  font-style: italic;
+}
+
+.hljs-function,
+.hljs-title {
+  color: var(--neon-blue);
+}
+
+.hljs-variable,
+.hljs-name {
+  color: var(--neon-cyan);
+}
+
+.hljs-type,
+.hljs-class {
+  color: var(--neon-purple);
+}
+
+/* Markdown mode toggle animation */
+.markdown-mode-btn {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.markdown-mode-btn:hover {
+  background-color: var(--color-surface-hover);
+}
+
+.markdown-mode-btn.active {
+  background-color: var(--color-accent-subtle);
+  color: var(--color-accent);
+}
+
+/* =============================================================================
    CUSTOM SCROLLBARS
    ============================================================================= */
 
@@ -279,13 +574,12 @@ body {
 
 .cm-activeLine {
   background: rgba(16, 185, 129, 0.05) !important;
-  box-shadow: inset 2px 0 0 var(--color-accent);
+  border-left: 2px solid var(--color-accent);
 }
 
 .cm-cursor {
   border-left: 2px solid var(--color-accent) !important;
-  box-shadow: 0 0 8px var(--color-accent-glow), 0 0 16px var(--color-accent-glow);
-  animation: cursor-blink 1s step-end infinite, cursor-glow 2s ease-in-out infinite;
+  animation: cursor-blink 1s step-end infinite;
 }
 
 .cm-selectionBackground {
@@ -294,13 +588,11 @@ body {
 
 .cm-focused .cm-selectionBackground {
   background: rgba(16, 185, 129, 0.25) !important;
-  box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
 }
 
 .cm-matchingBracket {
   background: var(--color-accent-subtle) !important;
   outline: 1px solid var(--color-accent) !important;
-  box-shadow: 0 0 8px var(--color-accent-glow);
   animation: bracket-pulse 0.3s ease-out;
 }
 
@@ -368,16 +660,6 @@ body {
   50% { opacity: 0; }
 }
 
-/* Cursor glow pulse */
-@keyframes cursor-glow {
-  0%, 100% { 
-    box-shadow: 0 0 8px var(--color-accent-glow), 0 0 16px var(--color-accent-glow);
-  }
-  50% { 
-    box-shadow: 0 0 12px var(--color-accent-glow), 0 0 24px var(--color-accent-glow), 0 0 32px var(--color-accent-glow);
-  }
-}
-
 /* Letter pop animation for typing */
 @keyframes letter-pop {
   0% {
@@ -395,15 +677,12 @@ body {
 @keyframes bracket-pulse {
   0% {
     transform: scale(1);
-    box-shadow: 0 0 0 var(--color-accent-glow);
   }
   50% {
     transform: scale(1.1);
-    box-shadow: 0 0 12px var(--color-accent-glow);
   }
   100% {
     transform: scale(1);
-    box-shadow: 0 0 8px var(--color-accent-glow);
   }
 }
 
@@ -529,20 +808,6 @@ body {
   animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
 
-/* Glow animation (for active states) */
-@keyframes glow {
-  0%, 100% {
-    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
-  }
-  50% {
-    box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
-  }
-}
-
-.animate-glow {
-  animation: glow 2s ease-in-out infinite;
-}
-
 /* =============================================================================
    TRANSITION UTILITIES
    ============================================================================= */
@@ -559,10 +824,9 @@ body {
   transition: all 0.3s ease;
 }
 
-/* Button hover lift effect with glow */
+/* Button hover lift effect */
 .hover-lift {
-  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), 
-              box-shadow 0.2s ease;
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .hover-lift:hover {
@@ -600,22 +864,22 @@ button:not(:disabled):active {
    ============================================================================= */
 
 .focus-ring:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-accent), 0 0 20px var(--color-accent-glow);
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 
 .focus-ring:focus:not(:focus-visible) {
-  box-shadow: none;
+  outline: none;
 }
 
 .focus-ring:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-accent), 0 0 20px var(--color-accent-glow);
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 
-/* Input focus glow */
+/* Input focus */
 input:focus, textarea:focus {
-  box-shadow: 0 0 0 1px var(--color-accent), 0 0 15px rgba(16, 185, 129, 0.3) !important;
+  outline: 1px solid var(--color-accent) !important;
 }
 
 /* =============================================================================
@@ -626,13 +890,8 @@ input:focus, textarea:focus {
   text-shadow: 0 0 4px currentColor, 0 0 8px currentColor, 0 0 16px currentColor;
 }
 
-.neon-box {
-  box-shadow: 0 0 10px var(--color-accent-glow), 0 0 20px var(--color-accent-glow), inset 0 0 10px rgba(16, 185, 129, 0.1);
-}
-
 .neon-border {
   border-color: var(--color-accent);
-  box-shadow: 0 0 5px var(--color-accent-glow), inset 0 0 5px rgba(16, 185, 129, 0.05);
 }
 
 /* =============================================================================
@@ -674,7 +933,6 @@ input:focus, textarea:focus {
   background: var(--color-accent-subtle);
   color: var(--color-accent);
   border-color: var(--color-accent);
-  box-shadow: 0 0 12px var(--color-accent-glow);
 }
 
 /* Portrait/Mobile panel positioning */

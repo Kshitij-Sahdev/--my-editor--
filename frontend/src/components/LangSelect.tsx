@@ -42,7 +42,6 @@ const styles = {
     border: '1px solid var(--color-border)',
     borderRadius: '8px',
     overflow: 'hidden',
-    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
     zIndex: 50,
   } as React.CSSProperties,
   viewport: {

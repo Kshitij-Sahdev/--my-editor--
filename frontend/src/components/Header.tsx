@@ -73,7 +73,6 @@ const styles = {
   } as React.CSSProperties,
   logoIconInner: {
     color: 'var(--color-accent)',
-    filter: 'drop-shadow(0 0 8px var(--color-accent))',
   } as React.CSSProperties,
   logoText: {
     display: 'flex',
@@ -85,7 +84,6 @@ const styles = {
     color: 'var(--color-accent)',
     letterSpacing: '-0.025em',
     fontFamily: 'var(--font-mono)',
-    filter: 'drop-shadow(0 0 10px var(--color-accent))',
   } as React.CSSProperties,
   logoVersion: {
     fontSize: 'var(--font-size-xs, 10px)',
@@ -119,7 +117,6 @@ const styles = {
   runButtonEnabled: {
     backgroundColor: 'var(--color-accent)',
     color: 'white',
-    boxShadow: '0 0 20px rgba(16, 185, 129, 0.4)',
   } as React.CSSProperties,
   runButtonDisabled: {
     backgroundColor: 'var(--color-surface-2)',
@@ -135,10 +132,8 @@ const styles = {
     borderRadius: '50%',
   } as React.CSSProperties,
   playIcon: {
-    filter: 'drop-shadow(0 0 4px rgba(255, 255, 255, 0.5))',
   } as React.CSSProperties,
   buttonText: {
-    filter: 'drop-shadow(0 0 4px rgba(255, 255, 255, 0.3))',
   } as React.CSSProperties,
   kbd: {
     display: 'none',

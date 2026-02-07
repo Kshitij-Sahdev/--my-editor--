@@ -33,6 +33,7 @@ import {
   createCommit,
   getFileCommits,
 } from "./storage";
+import { THEME_CSS_VARS, AVAILABLE_FONTS } from "./types";
 
 // =============================================================================
 // LAYOUT CONSTRAINTS
@@ -159,14 +160,13 @@ const styles = {
     left: 0,
     top: 0,
     bottom: 0,
-    zIndex: 30,
+    zIndex: 35, // Higher than output (30) so sidebar draws on top
     transition: 'transform 0.3s ease-out',
   } as React.CSSProperties,
   sidebarInner: {
     height: '100%',
     backgroundColor: 'var(--color-surface)',
     borderRight: '1px solid var(--color-border)',
-    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)',
     display: 'flex',
     flexDirection: 'column',
     position: 'relative',
@@ -189,7 +189,6 @@ const styles = {
   pinButtonActive: {
     backgroundColor: 'var(--color-accent)',
     color: 'white',
-    boxShadow: '0 10px 15px -3px rgba(16, 185, 129, 0.3)',
   } as React.CSSProperties,
   pinButtonInactive: {
     backgroundColor: 'var(--color-surface-2)',
@@ -219,22 +218,22 @@ const styles = {
     left: 0,
     right: 0,
     bottom: 0,
-    zIndex: 30,
+    zIndex: 25, // Lower than sidebar (35) so sidebar draws on top
     transition: 'transform 0.3s ease-out',
   } as React.CSSProperties,
   outputInner: {
     height: '100%',
     backgroundColor: 'var(--color-surface)',
     borderTop: '1px solid var(--color-border)',
-    boxShadow: '0 -25px 50px -12px rgba(0, 0, 0, 0.8)',
     display: 'flex',
     flexDirection: 'column',
     position: 'relative',
   } as React.CSSProperties,
   outputPinButton: {
     position: 'absolute',
-    top: '8px',
+    top: '6px',
     left: '12px',
+    bottom: 'auto',
     zIndex: 10,
   } as React.CSSProperties,
 };
@@ -332,6 +331,35 @@ export default function App() {
       saveState(state);
     }
   }, [state]);
+
+  /**
+   * Apply theme CSS variables to the document root when theme changes.
+   * This updates the entire website's color scheme (not just the editor).
+   */
+  useEffect(() => {
+    if (state?.settings?.theme) {
+      const themeVars = THEME_CSS_VARS[state.settings.theme];
+      if (themeVars) {
+        const root = document.documentElement;
+        Object.entries(themeVars).forEach(([property, value]) => {
+          root.style.setProperty(property, value);
+        });
+      }
+    }
+  }, [state?.settings?.theme]);
+
+  /**
+   * Apply font settings to the document root when font changes.
+   * This updates the --font-mono CSS variable used by the editor.
+   */
+  useEffect(() => {
+    if (state?.settings?.fontFamily) {
+      const fontConfig = AVAILABLE_FONTS.find(f => f.id === state.settings.fontFamily);
+      if (fontConfig) {
+        document.documentElement.style.setProperty('--font-mono', fontConfig.css);
+      }
+    }
+  }, [state?.settings?.fontFamily]);
 
   // ---------------------------------------------------------------------------
   // DERIVED VALUES
@@ -601,11 +629,6 @@ export default function App() {
     }
   }, [activeFile, isRunning, state?.settings?.autoShowOutput]);
 
-  /**
-   * Clear the output panel.
-   */
-  const clearOutput = useCallback(() => setOutput(null), []);
-
   // ---------------------------------------------------------------------------
   // MOBILE TOGGLE HANDLERS
   // ---------------------------------------------------------------------------
@@ -714,10 +737,9 @@ export default function App() {
             style={{
               ...styles.outputPanel,
               height: outputHeight,
-              // Respect sidebar width so they don't overlap
-              left: sidebarVisible ? sidebarWidth : 0,
+              left: 0, // Full width - sidebar draws over it
               transform: outputVisible ? 'translateY(0)' : 'translateY(100%)',
-              transition: 'transform 0.3s ease-out, left 0.3s ease-out',
+              transition: 'transform 0.3s ease-out',
             }}
             onMouseEnter={() => !isMobile && setOutputHovered(true)}
             onMouseLeave={() => !isMobile && setOutputHovered(false)}
@@ -757,7 +779,6 @@ export default function App() {
               <Output
                 stdout={output.stdout}
                 stderr={output.stderr}
-                onClear={clearOutput}
               />
             </div>
           </div>

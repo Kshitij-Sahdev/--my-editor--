@@ -57,7 +57,6 @@ const styles = {
   } as React.CSSProperties,
   headerIcon: {
     color: 'var(--color-accent)',
-    filter: 'drop-shadow(0 0 8px var(--color-accent))',
   } as React.CSSProperties,
   headerTitle: {
     fontSize: '18px',
@@ -95,12 +94,10 @@ const styles = {
     color: 'white',
     cursor: 'pointer',
     transition: 'all 0.2s',
-    boxShadow: '0 0 12px var(--color-accent-glow)',
   } as React.CSSProperties,
   applyButtonDisabled: {
     opacity: 0.5,
     cursor: 'not-allowed',
-    boxShadow: 'none',
   } as React.CSSProperties,
   content: {
     padding: '24px',
@@ -168,7 +165,6 @@ const styles = {
     backgroundColor: 'white',
     borderRadius: '50%',
     transition: 'transform 0.2s',
-    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
   } as React.CSSProperties,
   toggleKnobActive: {
     transform: 'translateX(20px)',
@@ -219,11 +215,13 @@ const styles = {
     border: '2px solid var(--color-border)',
     borderRadius: '12px',
     cursor: 'pointer',
-    transition: 'all 0.2s',
+    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+    outline: 'none',
+    userSelect: 'none',
+    WebkitTapHighlightColor: 'transparent',
   } as React.CSSProperties,
   themeOptionActive: {
     borderColor: 'var(--color-accent)',
-    boxShadow: '0 0 20px var(--color-accent-glow)',
   } as React.CSSProperties,
   themePreview: {
     width: '100%',
@@ -258,12 +256,14 @@ const styles = {
     border: '2px solid var(--color-border)',
     borderRadius: '8px',
     cursor: 'pointer',
-    transition: 'all 0.2s',
+    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
     position: 'relative',
+    outline: 'none',
+    userSelect: 'none',
+    WebkitTapHighlightColor: 'transparent',
   } as React.CSSProperties,
   fontOptionActive: {
     borderColor: 'var(--color-accent)',
-    boxShadow: '0 0 15px var(--color-accent-glow)',
   } as React.CSSProperties,
   fontPreview: {
     fontSize: '18px',
@@ -332,7 +332,7 @@ export default function Settings({ settings, onSettingsChange }: SettingsProps) 
   };
 
   return (
-    <div style={styles.container}>
+    <div className="settings-container" style={styles.container}>
       {/* Header */}
       <div style={styles.header}>
         <div style={styles.headerLeft}>
@@ -340,11 +340,12 @@ export default function Settings({ settings, onSettingsChange }: SettingsProps) 
           <span style={styles.headerTitle}>Editor Settings</span>
         </div>
         <div style={styles.headerButtons}>
-          <button style={styles.resetButton} onClick={handleReset}>
+          <button className="settings-btn reset-btn" style={styles.resetButton} onClick={handleReset}>
             <RotateCcw size={14} />
             Reset
           </button>
           <button 
+            className="settings-btn apply-btn"
             style={{
               ...styles.applyButton,
               ...(hasChanges ? {} : styles.applyButtonDisabled),
@@ -361,15 +362,15 @@ export default function Settings({ settings, onSettingsChange }: SettingsProps) 
       {/* Content */}
       <div style={styles.content}>
         {/* Theme Section */}
-        <div style={styles.section}>
-          <span style={styles.sectionTitle}>Theme</span>
+        <div className="section" style={styles.section}>
+          <span className="section-title" style={styles.sectionTitle}>Theme</span>
           <div style={styles.themeGrid}>
             {AVAILABLE_THEMES.map((theme) => (
               <div
                 key={theme.id}
+                className={`theme-option ${localSettings.theme === theme.id ? 'active' : ''}`}
                 style={{
                   ...styles.themeOption,
-                  ...(localSettings.theme === theme.id ? styles.themeOptionActive : {}),
                   position: 'relative',
                 }}
                 onClick={() => handleChange('theme', theme.id)}
@@ -386,7 +387,7 @@ export default function Settings({ settings, onSettingsChange }: SettingsProps) 
                 </div>
                 <span style={styles.themeName}>{theme.name}</span>
                 {localSettings.theme === theme.id && (
-                  <Check size={16} style={styles.checkIcon} />
+                  <Check size={16} style={styles.checkIcon} className="check-icon" />
                 )}
               </div>
             ))}
@@ -394,22 +395,20 @@ export default function Settings({ settings, onSettingsChange }: SettingsProps) 
         </div>
 
         {/* Font Section */}
-        <div style={styles.section}>
-          <span style={styles.sectionTitle}>Font Family</span>
+        <div className="section" style={styles.section}>
+          <span className="section-title" style={styles.sectionTitle}>Font Family</span>
           <div style={styles.fontGrid}>
             {AVAILABLE_FONTS.map((font) => (
               <div
                 key={font.id}
-                style={{
-                  ...styles.fontOption,
-                  ...(localSettings.fontFamily === font.id ? styles.fontOptionActive : {}),
-                }}
+                className={`font-option ${localSettings.fontFamily === font.id ? 'active' : ''}`}
+                style={styles.fontOption}
                 onClick={() => handleChange('fontFamily', font.id)}
               >
                 <span style={{ ...styles.fontPreview, fontFamily: font.css }}>Aa</span>
                 <span style={styles.fontName}>{font.name}</span>
                 {localSettings.fontFamily === font.id && (
-                  <Check size={14} style={{ ...styles.checkIcon, top: '50%', transform: 'translateY(-50%)' }} />
+                  <Check size={14} style={{ ...styles.checkIcon, top: '50%', transform: 'translateY(-50%)' }} className="check-icon" />
                 )}
               </div>
             ))}
@@ -417,9 +416,9 @@ export default function Settings({ settings, onSettingsChange }: SettingsProps) 
         </div>
 
         {/* Font Size */}
-        <div style={styles.section}>
-          <span style={styles.sectionTitle}>Font Size</span>
-          <div style={styles.optionRow}>
+        <div className="section" style={styles.section}>
+          <span className="section-title" style={styles.sectionTitle}>Font Size</span>
+          <div className="option-row" style={styles.optionRow}>
             <div style={styles.optionLabel}>
               <span style={styles.optionName}>Editor Font Size</span>
               <span style={styles.optionDesc}>Size of text in the code editor</span>
@@ -439,15 +438,16 @@ export default function Settings({ settings, onSettingsChange }: SettingsProps) 
         </div>
 
         {/* Editor Options */}
-        <div style={styles.section}>
-          <span style={styles.sectionTitle}>Editor Options</span>
+        <div className="section" style={styles.section}>
+          <span className="section-title" style={styles.sectionTitle}>Editor Options</span>
           
-          <div style={styles.optionRow}>
+          <div className="option-row" style={styles.optionRow}>
             <div style={styles.optionLabel}>
               <span style={styles.optionName}>Line Numbers</span>
               <span style={styles.optionDesc}>Show line numbers in the gutter</span>
             </div>
             <div
+              className={`toggle-switch ${localSettings.lineNumbers ? 'active' : ''}`}
               style={{
                 ...styles.toggle,
                 ...(localSettings.lineNumbers ? styles.toggleActive : {}),
@@ -463,12 +463,13 @@ export default function Settings({ settings, onSettingsChange }: SettingsProps) 
             </div>
           </div>
 
-          <div style={styles.optionRow}>
+          <div className="option-row" style={styles.optionRow}>
             <div style={styles.optionLabel}>
               <span style={styles.optionName}>Word Wrap</span>
               <span style={styles.optionDesc}>Wrap long lines to fit the editor width</span>
             </div>
             <div
+              className={`toggle-switch ${localSettings.wordWrap ? 'active' : ''}`}
               style={{
                 ...styles.toggle,
                 ...(localSettings.wordWrap ? styles.toggleActive : {}),
@@ -484,12 +485,13 @@ export default function Settings({ settings, onSettingsChange }: SettingsProps) 
             </div>
           </div>
 
-          <div style={styles.optionRow}>
+          <div className="option-row" style={styles.optionRow}>
             <div style={styles.optionLabel}>
               <span style={styles.optionName}>Bracket Matching</span>
               <span style={styles.optionDesc}>Highlight matching brackets</span>
             </div>
             <div
+              className={`toggle-switch ${localSettings.bracketMatching ? 'active' : ''}`}
               style={{
                 ...styles.toggle,
                 ...(localSettings.bracketMatching ? styles.toggleActive : {}),
@@ -505,12 +507,13 @@ export default function Settings({ settings, onSettingsChange }: SettingsProps) 
             </div>
           </div>
 
-          <div style={styles.optionRow}>
+          <div className="option-row" style={styles.optionRow}>
             <div style={styles.optionLabel}>
               <span style={styles.optionName}>Highlight Active Line</span>
               <span style={styles.optionDesc}>Highlight the line with the cursor</span>
             </div>
             <div
+              className={`toggle-switch ${localSettings.highlightActiveLine ? 'active' : ''}`}
               style={{
                 ...styles.toggle,
                 ...(localSettings.highlightActiveLine ? styles.toggleActive : {}),
@@ -526,12 +529,13 @@ export default function Settings({ settings, onSettingsChange }: SettingsProps) 
             </div>
           </div>
 
-          <div style={styles.optionRow}>
+          <div className="option-row" style={styles.optionRow}>
             <div style={styles.optionLabel}>
               <span style={styles.optionName}>Auto-show Output</span>
               <span style={styles.optionDesc}>Automatically show output panel when running code</span>
             </div>
             <div
+              className={`toggle-switch ${localSettings.autoShowOutput ? 'active' : ''}`}
               style={{
                 ...styles.toggle,
                 ...(localSettings.autoShowOutput ? styles.toggleActive : {}),
@@ -549,15 +553,16 @@ export default function Settings({ settings, onSettingsChange }: SettingsProps) 
         </div>
 
         {/* Tab Settings */}
-        <div style={styles.section}>
-          <span style={styles.sectionTitle}>Indentation</span>
+        <div className="section" style={styles.section}>
+          <span className="section-title" style={styles.sectionTitle}>Indentation</span>
           
-          <div style={styles.optionRow}>
+          <div className="option-row" style={styles.optionRow}>
             <div style={styles.optionLabel}>
               <span style={styles.optionName}>Tab Size</span>
               <span style={styles.optionDesc}>Number of spaces per tab</span>
             </div>
             <select
+              className="settings-select"
               value={localSettings.tabSize}
               onChange={(e) => handleChange('tabSize', parseInt(e.target.value))}
               style={styles.select}

@@ -8,11 +8,13 @@
  * - Keyboard shortcuts (Ctrl+Enter to run, Ctrl+S to commit)
  * - Inline commit input in the toolbar
  * - Line numbers, active line highlighting, bracket matching
+ * - Snowflakes effect for winter-themed filenames ❄️
  */
 
 "use client";
 
 import { useEffect, useRef, useCallback, useState } from "react";
+import Snowflakes from "magic-snowflakes";
 import {
   EditorView,
   keymap,
@@ -29,6 +31,7 @@ import {
   bracketMatching,
   indentUnit,
 } from "@codemirror/language";
+import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import { python } from "@codemirror/lang-python";
 import { cpp } from "@codemirror/lang-cpp";
 import { java } from "@codemirror/lang-java";
@@ -36,9 +39,10 @@ import { go } from "@codemirror/lang-go";
 import { javascript } from "@codemirror/lang-javascript";
 import { markdown } from "@codemirror/lang-markdown";
 import { editorThemes } from "../themes";
-import { GitCommit, Save, X, AlertCircle } from "lucide-react";
+import { GitCommit, Save, X, AlertCircle, Eye, Code2, Columns } from "lucide-react";
 import type { Language, EditorSettings } from "../types";
 import { RUNNABLE_LANGUAGES, LANGUAGE_LABELS, AVAILABLE_FONTS } from "../types";
+import MarkdownViewer from "./MarkdownViewer";
 
 // =============================================================================
 // TYPES
@@ -232,6 +236,52 @@ const styles = {
     minHeight: 0,
     position: 'relative',
   } as React.CSSProperties,
+  // Markdown mode toggle buttons
+  markdownModeToggle: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+    padding: '4px',
+    backgroundColor: 'var(--color-surface-2)',
+    borderRadius: '8px',
+    border: '1px solid var(--color-border)',
+  } as React.CSSProperties,
+  modeButton: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '4px',
+    padding: '6px 10px',
+    backgroundColor: 'transparent',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '12px',
+    fontWeight: 500,
+    color: 'var(--color-text-muted)',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+  } as React.CSSProperties,
+  modeButtonActive: {
+    backgroundColor: 'var(--color-accent-subtle)',
+    color: 'var(--color-accent)',
+  } as React.CSSProperties,
+  splitView: {
+    display: 'flex',
+    flex: 1,
+    minHeight: 0,
+    overflow: 'hidden',
+  } as React.CSSProperties,
+  splitPane: {
+    flex: 1,
+    minWidth: 0,
+    overflow: 'hidden',
+    position: 'relative',
+  } as React.CSSProperties,
+  splitDivider: {
+    width: '1px',
+    backgroundColor: 'var(--color-border)',
+    flexShrink: 0,
+  } as React.CSSProperties,
 };
 
 // =============================================================================
@@ -254,6 +304,42 @@ const languageExtensions: Partial<
 };
 
 // =============================================================================
+// WINTER THEME DETECTION ❄️
+// =============================================================================
+
+/**
+ * Patterns that trigger the snowflakes effect.
+ * Matches winter/snow/cold themed filenames.
+ */
+const WINTER_PATTERNS = [
+  /snow/i,
+  /winter/i,
+  /cold/i,
+  /frost/i,
+  /ice/i,
+  /frozen/i,
+  /blizzard/i,
+  /christmas/i,
+  /xmas/i,
+  /holiday/i,
+  /december/i,
+  /january/i,
+  /february/i,
+  /arctic/i,
+  /polar/i,
+  /glacier/i,
+  /snowflake/i,
+  /flake/i,
+];
+
+/**
+ * Check if a filename matches winter-themed patterns.
+ */
+function isWinterThemed(fileName: string): boolean {
+  return WINTER_PATTERNS.some(pattern => pattern.test(fileName));
+}
+
+// =============================================================================
 // COMPONENT
 // =============================================================================
 
@@ -274,6 +360,9 @@ export default function Editor({
 
   /** Container element for CodeMirror to mount into */
   const containerRef = useRef<HTMLDivElement>(null);
+
+  /** Wrapper container for snowflakes effect (wraps entire editor area) */
+  const snowflakesContainerRef = useRef<HTMLDivElement>(null);
 
   /** Reference to the CodeMirror EditorView instance */
   const viewRef = useRef<EditorView | null>(null);
@@ -302,6 +391,9 @@ export default function Editor({
   /** Whether we just committed (for animation) */
   const [justCommitted, setJustCommitted] = useState(false);
 
+  /** Markdown view mode: 'edit' | 'preview' | 'split' */
+  const [markdownMode, setMarkdownMode] = useState<'edit' | 'preview' | 'split'>('split');
+
   // ---------------------------------------------------------------------------
   // DERIVED VALUES
   // ---------------------------------------------------------------------------
@@ -311,6 +403,55 @@ export default function Editor({
    * Only runnable languages have Docker runner images.
    */
   const isRunnable = RUNNABLE_LANGUAGES.includes(language);
+
+  /**
+   * Whether this is a markdown file.
+   * Enables the edit/preview/split mode toggle.
+   */
+  const isMarkdown = language === 'markdown';
+
+  /**
+   * Whether this file has a winter-themed name.
+   * Triggers the snowflakes effect ❄️
+   */
+  const showSnowflakes = isWinterThemed(fileName);
+
+  // ---------------------------------------------------------------------------
+  // SNOWFLAKES EFFECT ❄️
+  // ---------------------------------------------------------------------------
+
+  /** Reference to the Snowflakes instance */
+  const snowflakesRef = useRef<Snowflakes | null>(null);
+
+  /**
+   * Initialize or destroy snowflakes based on filename.
+   * Creates a beautiful falling snow effect for winter-themed files.
+   */
+  useEffect(() => {
+    if (showSnowflakes && snowflakesContainerRef.current) {
+      // Create snowflakes instance attached to the wrapper container
+      snowflakesRef.current = new Snowflakes({
+        container: snowflakesContainerRef.current,
+        color: '#ffffff',
+        count: 50,
+        minSize: 8,
+        maxSize: 18,
+        minOpacity: 0.4,
+        maxOpacity: 0.9,
+        speed: 1.5,
+        wind: true,
+        zIndex: 100,
+      });
+      snowflakesRef.current.start();
+    }
+
+    return () => {
+      if (snowflakesRef.current) {
+        snowflakesRef.current.destroy();
+        snowflakesRef.current = null;
+      }
+    };
+  }, [showSnowflakes, fileId]);
 
   // ---------------------------------------------------------------------------
   // HANDLERS
@@ -400,7 +541,7 @@ export default function Editor({
       syntaxHighlighting(defaultHighlightStyle),
       themeExtension, // Dynamic theme from settings
       runKeymap,
-      keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
+      keymap.of([...defaultKeymap, ...historyKeymap, ...closeBracketsKeymap, indentWithTab]),
       updateListener,
       EditorView.theme({
         "&": { 
@@ -416,6 +557,12 @@ export default function Editor({
         ".cm-content": {
           minHeight: "100%",
           caretColor: "var(--color-accent)",
+          fontFamily: fontFamily,
+          fontSize: `${fontSize}px`,
+        },
+        ".cm-gutters": {
+          fontFamily: fontFamily,
+          fontSize: `${fontSize}px`,
         },
         ".cm-selectionBackground, .cm-content ::selection": {
           backgroundColor: "rgba(16, 185, 129, 0.3) !important",
@@ -441,6 +588,9 @@ export default function Editor({
     if (settings?.bracketMatching !== false) {
       extensions.push(bracketMatching());
     }
+
+    // Add auto-closing brackets/quotes
+    extensions.push(closeBrackets());
 
     // Add word wrap if enabled
     if (settings?.wordWrap) {
@@ -550,8 +700,47 @@ export default function Editor({
           )}
         </div>
 
-        {/* Right side: commit controls */}
+        {/* Right side: markdown mode toggle + commit controls */}
         <div style={styles.toolbarRight}>
+          {/* Markdown mode toggle */}
+          {isMarkdown && (
+            <div style={styles.markdownModeToggle}>
+              <button
+                onClick={() => setMarkdownMode('edit')}
+                style={{
+                  ...styles.modeButton,
+                  ...(markdownMode === 'edit' ? styles.modeButtonActive : {}),
+                }}
+                title="Edit mode"
+              >
+                <Code2 size={14} />
+                Edit
+              </button>
+              <button
+                onClick={() => setMarkdownMode('split')}
+                style={{
+                  ...styles.modeButton,
+                  ...(markdownMode === 'split' ? styles.modeButtonActive : {}),
+                }}
+                title="Split view"
+              >
+                <Columns size={14} />
+                Split
+              </button>
+              <button
+                onClick={() => setMarkdownMode('preview')}
+                style={{
+                  ...styles.modeButton,
+                  ...(markdownMode === 'preview' ? styles.modeButtonActive : {}),
+                }}
+                title="Preview mode"
+              >
+                <Eye size={14} />
+                Preview
+              </button>
+            </div>
+          )}
+
           {showCommit ? (
             // Commit input form
             <div style={styles.commitForm} className="animate-slide-down">
@@ -603,8 +792,48 @@ export default function Editor({
         </div>
       </div>
 
-      {/* CodeMirror editor container */}
-      <div ref={containerRef} style={styles.editorContainer} />
+      {/* Editor/Preview content area with snowflakes wrapper */}
+      <div 
+        ref={snowflakesContainerRef} 
+        style={{ 
+          flex: 1, 
+          display: 'flex', 
+          flexDirection: 'column', 
+          minHeight: 0, 
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+      >
+        {isMarkdown ? (
+          // Markdown with edit/preview/split modes
+          <div style={styles.splitView}>
+            {/* Editor pane - always rendered, hidden in preview mode */}
+            <div 
+              style={{
+                ...styles.splitPane,
+                display: markdownMode === 'preview' ? 'none' : 'block',
+                flex: markdownMode === 'split' ? 1 : 'auto',
+                width: markdownMode === 'edit' ? '100%' : undefined,
+              }}
+            >
+              <div ref={containerRef} style={styles.editorContainer} />
+            </div>
+            
+            {/* Divider - only in split mode */}
+            {markdownMode === 'split' && <div style={styles.splitDivider} />}
+            
+            {/* Preview pane - hidden in edit mode */}
+            {markdownMode !== 'edit' && (
+              <div style={styles.splitPane}>
+                <MarkdownViewer content={content} />
+              </div>
+            )}
+          </div>
+        ) : (
+          // Regular code editor
+          <div ref={containerRef} style={styles.editorContainer} />
+        )}
+      </div>
     </div>
   );
 }

@@ -4,14 +4,13 @@
  * Displays the stdout and stderr from code execution.
  * Features:
  * - Success/error status indicator
- * - Clear button to dismiss the panel
  * - Colored output (green for stdout, red for stderr)
  * - Monospace font for proper code output rendering
  */
 
 "use client";
 
-import { X, Terminal, CheckCircle, XCircle } from "lucide-react";
+import { Terminal, CheckCircle, XCircle } from "lucide-react";
 
 // =============================================================================
 // TYPES
@@ -22,8 +21,6 @@ interface OutputProps {
   stdout: string;
   /** Standard error (compilation errors, runtime errors, etc.) */
   stderr: string;
-  /** Callback to clear/dismiss the output panel */
-  onClear: () => void;
 }
 
 // =============================================================================
@@ -42,7 +39,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '10px 16px 10px 48px',
+    padding: '10px 48px 10px 16px', // Right padding for pin button
     borderBottom: '1px solid var(--color-border-subtle)',
     backgroundColor: 'var(--color-surface-2)',
   } as React.CSSProperties,
@@ -75,15 +72,6 @@ const styles = {
   } as React.CSSProperties,
   successStatus: {
     color: 'var(--color-success)',
-  } as React.CSSProperties,
-  clearButton: {
-    padding: '6px',
-    color: 'var(--color-text-muted)',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-    border: 'none',
-    background: 'none',
   } as React.CSSProperties,
   content: {
     flex: 1,
@@ -122,7 +110,7 @@ const styles = {
 // COMPONENT
 // =============================================================================
 
-export default function Output({ stdout, stderr, onClear }: OutputProps) {
+export default function Output({ stdout, stderr }: OutputProps) {
   /** Whether there's any output to display */
   const hasOutput = stdout || stderr;
 
@@ -165,15 +153,6 @@ export default function Output({ stdout, stderr, onClear }: OutputProps) {
             </div>
           )}
         </div>
-
-        {/* Clear button */}
-        <button
-          onClick={onClear}
-          style={styles.clearButton}
-          title="Clear output"
-        >
-          <X size={14} />
-        </button>
       </div>
 
       {/* Output content */}
