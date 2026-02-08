@@ -604,6 +604,28 @@ func checkDocker() bool {
 }
 
 // =============================================================================
+// STATIC FILE SERVER (for production)
+// =============================================================================
+
+func staticFileServer(distPath string) http.Handler {
+	fs := http.FileServer(http.Dir(distPath))
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Try to serve the file
+		path := filepath.Join(distPath, r.URL.Path)
+
+		// Check if file exists
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			// SPA fallback: serve index.html for non-existent paths
+			http.ServeFile(w, r, filepath.Join(distPath, "index.html"))
+			return
+		}
+
+		fs.ServeHTTP(w, r)
+	})
+}
+
+// =============================================================================
 // MAIN
 // =============================================================================
 
@@ -616,6 +638,18 @@ func main() {
 		mode = "DOCKER"
 	}
 
+	// Check if frontend dist exists
+	distPath := "../frontend/dist"
+	serveFrontend := false
+	if _, err := os.Stat(distPath); err == nil {
+		serveFrontend = true
+	}
+
+	frontendStatus := "NOT SERVING (use Vite dev server)"
+	if serveFrontend {
+		frontendStatus = "SERVING from ../frontend/dist"
+	}
+
 	fmt.Printf(`
 ╔═══════════════════════════════════════════╗
 ║          CODE RUNNER SERVER               ║
@@ -625,12 +659,19 @@ func main() {
 ║  Batch:  POST /api/run                    ║
 ║  Stream: WS   /api/ws                     ║
 ║  Health: GET  /api/health                 ║
+╠═══════════════════════════════════════════╣
+║  Frontend: %-30s ║
 ╚═══════════════════════════════════════════╝
-`, mode, config.Port)
+`, mode, config.Port, frontendStatus)
 
 	http.HandleFunc("/api/health", corsMiddleware(healthHandler))
 	http.HandleFunc("/api/run", corsMiddleware(runHandler))
 	http.HandleFunc("/api/ws", wsHandler)
+
+	// Serve frontend static files if dist exists
+	if serveFrontend {
+		http.Handle("/", staticFileServer(distPath))
+	}
 
 	fmt.Printf("\n🚀 Server running on http://0.0.0.0:%s\n\n", config.Port)
 	if err := http.ListenAndServe(":"+config.Port, nil); err != nil {

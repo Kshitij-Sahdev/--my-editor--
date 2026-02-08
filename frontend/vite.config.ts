@@ -10,6 +10,15 @@ export default defineConfig({
         target: 'http://localhost:8080',
         changeOrigin: true,
         ws: true,
+        // Required for WebSocket to work properly through tunnel
+        configure: (proxy) => {
+          proxy.on('error', (err) => {
+            console.log('proxy error', err);
+          });
+          proxy.on('proxyReq', (proxyReq, req) => {
+            console.log('Proxying:', req.method, req.url, '→', 'http://localhost:8080' + req.url);
+          });
+        },
       },
     },
   },

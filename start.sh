@@ -120,6 +120,7 @@ start_frontend() {
 
 # -----------------------------------------------------------------------------
 # Tunnel (AUTO URL EXTRACT + HTTP/2)
+# Tunnels the BACKEND (port 8080) which now serves frontend too
 # -----------------------------------------------------------------------------
 start_tunnel() {
     echo -e "${BLUE}Starting Cloudflare HTTP/2 tunnel...${NC}"
@@ -127,9 +128,9 @@ start_tunnel() {
     LOGFILE="/tmp/cloudflare_tunnel.log"
     rm -f "$LOGFILE"
 
-    # Start tunnel in background
+    # Tunnel the BACKEND port (it serves both API and static frontend)
     cloudflared tunnel \
-        --url http://localhost:$FRONTEND_PORT \
+        --url http://localhost:$BACKEND_PORT \
         --protocol http2 \
         --no-autoupdate \
         > "$LOGFILE" 2>&1 &
@@ -173,21 +174,38 @@ print_status() {
 }
 
 # -----------------------------------------------------------------------------
+# Build frontend (for tunnel mode)
+# -----------------------------------------------------------------------------
+build_frontend() {
+    echo -e "${BLUE}Building frontend for production...${NC}"
+    cd "$FRONTEND_DIR"
+    npm install --silent
+    npm run build
+    echo -e "${GREEN}✓ Frontend built${NC}"
+}
+
+# -----------------------------------------------------------------------------
 main() {
     check_deps
-    build_backend
-    start_backend
 
     case "${1:-}" in
         dev)
+            # Dev mode: Vite dev server + backend
+            build_backend
+            start_backend
             start_frontend dev
             ;;
         tunnel)
-            # Use dev mode for tunnel - it has the /api proxy built in
-            start_frontend dev
+            # Tunnel mode: Build frontend, backend serves everything on :8080
+            build_frontend
+            build_backend
+            start_backend
             start_tunnel
             ;;
         *)
+            # Default: Build frontend, run with Vite preview
+            build_backend
+            start_backend
             start_frontend prod
             ;;
     esac
