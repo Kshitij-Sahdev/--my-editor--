@@ -1,417 +1,600 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
-/*
-RunRequest defines the contract between frontend and backend.
+// =============================================================================
+// CONFIGURATION
+// =============================================================================
 
-Important design choice:
-- Backend does NOT care about users, sessions, or auth.
-- This endpoint is intentionally dumb: take code in, return output.
-- All validation and safety happens at execution boundaries, not API boundaries.
-*/
+var config = struct {
+	Port           string
+	MaxCodeSize    int
+	MaxStdinSize   int
+	MaxOutputSize  int
+	MaxConcurrent  int
+	TimeoutBatch   time.Duration
+	TimeoutStream  time.Duration
+	DockerAvail    bool
+}{
+	Port:           getEnv("PORT", "8080"),
+	MaxCodeSize:    64 * 1024,      // 64KB
+	MaxStdinSize:   1 * 1024 * 1024, // 1MB
+	MaxOutputSize:  1 * 1024 * 1024, // 1MB
+	MaxConcurrent:  3,
+	TimeoutBatch:   10 * time.Second,
+	TimeoutStream:  5 * time.Minute,
+	DockerAvail:    false,
+}
+
+func getEnv(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
+}
+
+// =============================================================================
+// LANGUAGE CONFIG
+// =============================================================================
+
+type LangConfig struct {
+	Filename string
+	Image    string
+	Compile  string // empty = interpreted
+	Run      string
+	Timeout  time.Duration
+}
+
+var languages = map[string]LangConfig{
+	"python": {
+		Filename: "main.py",
+		Image:    "runner-python",
+		Run:      "python3 main.py",
+		Timeout:  5 * time.Second,
+	},
+	"javascript": {
+		Filename: "main.js",
+		Image:    "runner-js",
+		Run:      "node main.js",
+		Timeout:  5 * time.Second,
+	},
+	"go": {
+		Filename: "main.go",
+		Image:    "runner-go",
+		Compile:  "go build -o /tmp/prog main.go",
+		Run:      "/tmp/prog",
+		Timeout:  10 * time.Second,
+	},
+	"cpp": {
+		Filename: "main.cpp",
+		Image:    "runner-cpp",
+		Compile:  "g++ -O2 -o /tmp/prog main.cpp",
+		Run:      "/tmp/prog",
+		Timeout:  10 * time.Second,
+	},
+	"java": {
+		Filename: "Main.java",
+		Image:    "runner-java",
+		Compile:  "javac -d /tmp Main.java",
+		Run:      "java -cp /tmp Main",
+		Timeout:  10 * time.Second,
+	},
+}
+
+// =============================================================================
+// RATE LIMITING
+// =============================================================================
+
+var (
+	rateLimiter   = make(map[string]int)
+	rateLimiterMu sync.Mutex
+)
+
+func acquireSlot(ip string) bool {
+	rateLimiterMu.Lock()
+	defer rateLimiterMu.Unlock()
+	if rateLimiter[ip] >= config.MaxConcurrent {
+		return false
+	}
+	rateLimiter[ip]++
+	return true
+}
+
+func releaseSlot(ip string) {
+	rateLimiterMu.Lock()
+	defer rateLimiterMu.Unlock()
+	if rateLimiter[ip] > 0 {
+		rateLimiter[ip]--
+	}
+}
+
+func getClientIP(r *http.Request) string {
+	if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
+		return strings.Split(fwd, ",")[0]
+	}
+	return r.RemoteAddr
+}
+
+// =============================================================================
+// CORS MIDDLEWARE
+// =============================================================================
+
+func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		next(w, r)
+	}
+}
+
+// =============================================================================
+// BATCH EXECUTION (HTTP POST /run)
+// =============================================================================
+
 type RunRequest struct {
 	Language string `json:"language"`
 	Code     string `json:"code"`
 	Stdin    string `json:"stdin"`
 }
 
-/*
-RunResponse mirrors what competitive programming platforms do.
-
-Key idea:
-- HTTP status is NOT used to signal execution failure.
-- stdout + stderr are always returned.
-- This keeps frontend logic dead simple and predictable.
-*/
 type RunResponse struct {
-	Stdout string `json:"stdout"`
-	Stderr string `json:"stderr"`
-}
-
-/*
-Security limits.
-
-These prevent resource exhaustion attacks.
-*/
-const (
-	// Maximum code size (64KB should be enough for any reasonable program)
-	MaxCodeSize = 64 * 1024
-	// Maximum stdin size (1MB for competitive programming input)
-	MaxStdinSize = 1 * 1024 * 1024
-	// Maximum output size (1MB to prevent memory exhaustion)
-	MaxOutputSize = 1 * 1024 * 1024
-	// Rate limit: max concurrent executions per IP
-	MaxConcurrentPerIP = 3
-)
-
-/*
-Simple rate limiter by IP.
-
-Not production-grade but prevents basic abuse.
-*/
-var (
-	ipLocks   = make(map[string]int)
-	ipLocksMu sync.Mutex
-)
-
-func acquireSlot(ip string) bool {
-	ipLocksMu.Lock()
-	defer ipLocksMu.Unlock()
-	if ipLocks[ip] >= MaxConcurrentPerIP {
-		return false
-	}
-	ipLocks[ip]++
-	return true
-}
-
-func releaseSlot(ip string) {
-	ipLocksMu.Lock()
-	defer ipLocksMu.Unlock()
-	if ipLocks[ip] > 0 {
-		ipLocks[ip]--
-	}
-}
-
-/*
-limitedWriter wraps an io.Writer and limits total bytes written.
-
-Prevents malicious code from exhausting memory with huge output.
-*/
-type limitedWriter struct {
-	w         io.Writer
-	limit     int
-	written   int
-	truncated bool
-}
-
-func (lw *limitedWriter) Write(p []byte) (int, error) {
-	if lw.written >= lw.limit {
-		lw.truncated = true
-		return len(p), nil // Pretend we wrote it to avoid breaking pipe
-	}
-
-	remaining := lw.limit - lw.written
-	if len(p) > remaining {
-		p = p[:remaining]
-		lw.truncated = true
-	}
-
-	n, err := lw.w.Write(p)
-	lw.written += n
-	return n, err
+	Stdout  string `json:"stdout"`
+	Stderr  string `json:"stderr"`
+	Success bool   `json:"success"`
 }
 
 func runHandler(w http.ResponseWriter, r *http.Request) {
+	clientIP := getClientIP(r)
 
-	/*
-		CORS preflight handling.
-
-		Why this exists:
-		- Frontend is hosted separately (Vite, localhost, future CDN).
-		- Browser sends OPTIONS before POST.
-		- If you don’t answer this, frontend “mysteriously” breaks.
-	*/
-	if r.Method == http.MethodOptions {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-
-	// Allow browser to actually read the response
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-
-	/*
-		Rate limiting by IP.
-
-		Prevents single user from exhausting server resources.
-	*/
-	clientIP := r.RemoteAddr
-	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
-		clientIP = forwarded
-	}
-
+	// Rate limit
 	if !acquireSlot(clientIP) {
-		http.Error(w, "Too many concurrent requests. Please wait.", http.StatusTooManyRequests)
+		http.Error(w, "Too many requests", http.StatusTooManyRequests)
 		return
 	}
 	defer releaseSlot(clientIP)
 
-	/*
-		Limit request body size.
-
-		Prevents memory exhaustion from huge payloads.
-	*/
-	r.Body = http.MaxBytesReader(w, r.Body, MaxCodeSize+MaxStdinSize+1024)
-
-	/*
-		Decode request payload.
-	*/
+	// Parse request
+	r.Body = http.MaxBytesReader(w, r.Body, int64(config.MaxCodeSize+config.MaxStdinSize+1024))
 	var req RunRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request or payload too large", http.StatusBadRequest)
+		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
 
-	/*
-		Validate input sizes.
-	*/
-	if len(req.Code) > MaxCodeSize {
-		http.Error(w, "Code too large (max 64KB)", http.StatusBadRequest)
-		return
-	}
-	if len(req.Stdin) > MaxStdinSize {
-		http.Error(w, "Input too large (max 1MB)", http.StatusBadRequest)
+	// Validate language
+	lang, ok := languages[req.Language]
+	if !ok {
+		http.Error(w, "Unsupported language", http.StatusBadRequest)
 		return
 	}
 
-	/*
-		Create a temporary execution directory.
-
-		Critical security idea:
-		- Each run gets its own isolated filesystem.
-		- Directory is deleted after execution.
-		- Nothing persists between runs.
-	*/
-	tmp, err := os.MkdirTemp("", "run-")
-	if err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
-
-	/*
-		Permissions are deliberately open (0777).
-
-		Why this is safe:
-		- Directory is mounted into a container, not exposed to host users.
-		- Container runs as non-root.
-		- Root filesystem is read-only.
-	*/
-	os.Chmod(tmp, 0777)
-	defer os.RemoveAll(tmp)
-
-	/*
-		Map language → filename + Docker image.
-
-		Important:
-		- Filenames are fixed and predictable.
-		- Java requires Main.java specifically.
-		- Docker image names are hard-coded to avoid injection.
-	*/
-	var filename, image string
-
-	switch req.Language {
-	case "python":
-		filename = "main.py"
-		image = "runner-python"
-	case "cpp":
-		filename = "main.cpp"
-		image = "runner-cpp"
-	case "java":
-		filename = "Main.java"
-		image = "runner-java"
-	case "go":
-		filename = "main.go"
-		image = "runner-go"
-	case "javascript":
-		filename = "main.js"
-		image = "runner-js"
-	default:
-		http.Error(w, "unsupported language", 400)
-		return
-	}
-
-	/*
-		Write user code into the temp directory.
-
-		Why 0644:
-		- Readable by container user.
-		- Not executable on host.
-		- Execution happens via interpreter/compiler inside container.
-	*/
-	err = os.WriteFile(filepath.Join(tmp, filename), []byte(req.Code), 0644)
-	if err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
-
-	/*
-		Hard execution timeout.
-
-		This is NON-NEGOTIABLE.
-
-		Why:
-		- CPU limits do NOT stop infinite loops.
-		- Node, Java, Go can run forever otherwise.
-		- Context cancellation guarantees docker is killed.
-
-		Java/Go need more time for compilation.
-	*/
-	timeout := 5 * time.Second
-	if req.Language == "java" || req.Language == "go" || req.Language == "cpp" {
-		timeout = 10 * time.Second
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
-	/*
-		Docker run command with real sandboxing.
-
-		Each flag exists for a reason:
-		- --network=none          → no data exfiltration
-		- --memory / swap         → prevent host OOM
-		- --cpus                  → fair scheduling
-		- --pids-limit            → stop fork/thread bombs
-		- --read-only             → immutable root filesystem
-		- --cap-drop=ALL          → remove Linux privileges
-		- no-new-privileges       → prevent privilege escalation
-		- seccomp=default         → block dangerous syscalls
-		- volume mount            → only /app is writable
-		- tmpfs mounts            → writable temp dirs for compilers
-	*/
-
-	// Compiled languages need more CPU for compilation
-	cpuLimit := "0.5"
-	if req.Language == "go" || req.Language == "java" || req.Language == "cpp" {
-		cpuLimit = "1.0"
-	}
-
-	args := []string{
-		"run", "--rm",
-		"--network=none",
-		"--memory=256m",
-		"--memory-swap=256m",
-		"--cpus=" + cpuLimit,
-		"--pids-limit=128",
-		"--read-only",
-		"--cap-drop=ALL",
-		"--security-opt", "no-new-privileges",
-		"--ulimit", "fsize=10485760:10485760", // 10MB max file size
-		"--ulimit", "nofile=256:256", // Max open files (Go compiler needs ~100+)
-		"--tmpfs", "/tmp:rw,exec,size=64m",
-		"-v", tmp + ":/app:rw",
-	}
-
-	args = append(args, image)
-
-	cmd := exec.CommandContext(ctx, "docker", args...)
-
-	// Log execution details
-	fmt.Printf("\n[RUN] lang=%s | timeout=%v | cpu=%s | file=%s\n", req.Language, timeout, cpuLimit, filename)
-
-	/*
-		Forward stdin to the container.
-
-		This allows:
-		- interactive problems
-		- competitive programming style input
-	*/
-	cmd.Stdin = bytes.NewBufferString(req.Stdin)
-
-	/*
-		Limit output size to prevent memory exhaustion.
-
-		Using io.LimitReader pattern with a buffer.
-	*/
-	var stdout, stderr bytes.Buffer
-	stdoutLimited := &limitedWriter{w: &stdout, limit: MaxOutputSize}
-	stderrLimited := &limitedWriter{w: &stderr, limit: MaxOutputSize}
-	cmd.Stdout = stdoutLimited
-	cmd.Stderr = stderrLimited
-
-	/*
-		Run the container.
-
-		If it times out:
-		- Context cancels
-		- Docker process is killed
-		- Backend survives
-	*/
-	err = cmd.Run()
-
-	// Log completion status
-	status := "OK"
-	if err != nil {
-		status = err.Error()
-	}
-	fmt.Printf("[DONE] lang=%s | status=%s | stdout=%d bytes | stderr=%d bytes\n",
-		req.Language, status, stdout.Len(), stderr.Len())
-
-	// Check if output was truncated
-	stdoutStr := stdout.String()
-	stderrStr := stderr.String()
-	if stdoutLimited.truncated {
-		stdoutStr += "\n... [output truncated, max 1MB]"
-	}
-	if stderrLimited.truncated {
-		stderrStr += "\n... [output truncated, max 1MB]"
-	}
-
-	resp := RunResponse{
-		Stdout: stdoutStr,
-		Stderr: stderrStr,
-	}
-
-	/*
-		Surface execution errors cleanly.
-
-		If stderr is empty but error exists:
-		- likely timeout or Docker-level failure
-	*/
-	if err != nil && resp.Stderr == "" {
-		resp.Stderr = err.Error()
+	// Execute
+	var resp RunResponse
+	if config.DockerAvail {
+		resp = executeDocker(req.Code, req.Stdin, lang)
+	} else {
+		resp = executeNative(req.Code, req.Stdin, lang)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
 }
 
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	/*
-		Health check endpoint for frontend connectivity detection.
-		Simple JSON response indicating service is available.
-	*/
-	// Handle CORS preflight
-	if r.Method == http.MethodOptions {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		w.WriteHeader(http.StatusOK)
+func executeDocker(code, stdin string, lang LangConfig) RunResponse {
+	// Create temp dir
+	tmp, err := os.MkdirTemp("", "run-")
+	if err != nil {
+		return RunResponse{Stderr: err.Error()}
+	}
+	defer os.RemoveAll(tmp)
+	os.Chmod(tmp, 0777)
+
+	// Write code
+	codePath := filepath.Join(tmp, lang.Filename)
+	if err := os.WriteFile(codePath, []byte(code), 0644); err != nil {
+		return RunResponse{Stderr: err.Error()}
+	}
+
+	// Build command
+	runCmd := lang.Run
+	if lang.Compile != "" {
+		runCmd = lang.Compile + " && " + lang.Run
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), lang.Timeout)
+	defer cancel()
+
+	args := []string{
+		"run", "--rm", "-i",
+		"--network=none",
+		"--memory=256m",
+		"--memory-swap=256m",
+		"--cpus=1.0",
+		"--pids-limit=128",
+		"--read-only",
+		"--cap-drop=ALL",
+		"--security-opt", "no-new-privileges",
+		"--ulimit", "fsize=10485760:10485760",
+		"--ulimit", "nofile=256:256",
+		"--tmpfs", "/tmp:rw,exec,size=64m",
+		"-v", tmp + ":/app:rw",
+		"-w", "/app",
+		lang.Image,
+		"sh", "-c", runCmd,
+	}
+
+	cmd := exec.CommandContext(ctx, "docker", args...)
+	cmd.Stdin = strings.NewReader(stdin)
+
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &limitedWriter{w: &stdout, limit: config.MaxOutputSize}
+	cmd.Stderr = &limitedWriter{w: &stderr, limit: config.MaxOutputSize}
+
+	err = cmd.Run()
+
+	resp := RunResponse{
+		Stdout:  stdout.String(),
+		Stderr:  stderr.String(),
+		Success: err == nil,
+	}
+
+	if err != nil && resp.Stderr == "" {
+		resp.Stderr = err.Error()
+	}
+
+	return resp
+}
+
+func executeNative(code, stdin string, lang LangConfig) RunResponse {
+	// Fallback for systems without Docker (Termux, etc.)
+	// Only supports interpreted languages safely
+	
+	tmp, err := os.MkdirTemp("", "run-")
+	if err != nil {
+		return RunResponse{Stderr: err.Error()}
+	}
+	defer os.RemoveAll(tmp)
+
+	codePath := filepath.Join(tmp, lang.Filename)
+	if err := os.WriteFile(codePath, []byte(code), 0644); err != nil {
+		return RunResponse{Stderr: err.Error()}
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), lang.Timeout)
+	defer cancel()
+
+	var cmd *exec.Cmd
+	switch lang.Filename {
+	case "main.py":
+		cmd = exec.CommandContext(ctx, "python3", codePath)
+	case "main.js":
+		cmd = exec.CommandContext(ctx, "node", codePath)
+	default:
+		return RunResponse{Stderr: "Native execution not supported for this language. Install Docker."}
+	}
+
+	cmd.Dir = tmp
+	cmd.Stdin = strings.NewReader(stdin)
+
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err = cmd.Run()
+
+	return RunResponse{
+		Stdout:  stdout.String(),
+		Stderr:  stderr.String(),
+		Success: err == nil,
+	}
+}
+
+// =============================================================================
+// INTERACTIVE TERMINAL (WebSocket /ws)
+// =============================================================================
+
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool { return true },
+}
+
+type WSMessage struct {
+	Type     string `json:"type"` // "init", "stdin", "resize", "kill"
+	Language string `json:"language,omitempty"`
+	Code     string `json:"code,omitempty"`
+	Data     string `json:"data,omitempty"` // stdin data
+	Cols     int    `json:"cols,omitempty"`
+	Rows     int    `json:"rows,omitempty"`
+}
+
+type WSResponse struct {
+	Type string `json:"type"` // "stdout", "stderr", "exit", "error"
+	Data string `json:"data"`
+	Code int    `json:"code,omitempty"` // exit code
+}
+
+func wsHandler(w http.ResponseWriter, r *http.Request) {
+	clientIP := getClientIP(r)
+
+	if !acquireSlot(clientIP) {
+		http.Error(w, "Too many connections", http.StatusTooManyRequests)
+		return
+	}
+	defer releaseSlot(clientIP)
+
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		return
+	}
+	defer conn.Close()
+
+	// Read init message
+	var initMsg WSMessage
+	if err := conn.ReadJSON(&initMsg); err != nil || initMsg.Type != "init" {
+		conn.WriteJSON(WSResponse{Type: "error", Data: "Expected init message"})
 		return
 	}
 
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	lang, ok := languages[initMsg.Language]
+	if !ok {
+		conn.WriteJSON(WSResponse{Type: "error", Data: "Unsupported language"})
+		return
+	}
+
+	// Create temp dir
+	tmp, err := os.MkdirTemp("", "ws-run-")
+	if err != nil {
+		conn.WriteJSON(WSResponse{Type: "error", Data: err.Error()})
+		return
+	}
+	defer os.RemoveAll(tmp)
+	os.Chmod(tmp, 0777)
+
+	// Write code
+	codePath := filepath.Join(tmp, lang.Filename)
+	if err := os.WriteFile(codePath, []byte(initMsg.Code), 0644); err != nil {
+		conn.WriteJSON(WSResponse{Type: "error", Data: err.Error()})
+		return
+	}
+
+	// Build run command
+	runCmd := lang.Run
+	if lang.Compile != "" {
+		runCmd = lang.Compile + " && " + lang.Run
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), config.TimeoutStream)
+	defer cancel()
+
+	var cmd *exec.Cmd
+	if config.DockerAvail {
+		args := []string{
+			"run", "--rm", "-i",
+			"--network=none",
+			"--memory=256m",
+			"--memory-swap=256m",
+			"--cpus=1.0",
+			"--pids-limit=128",
+			"--read-only",
+			"--cap-drop=ALL",
+			"--security-opt", "no-new-privileges",
+			"--tmpfs", "/tmp:rw,exec,size=64m",
+			"-v", tmp + ":/app:rw",
+			"-w", "/app",
+			lang.Image,
+			"sh", "-c", runCmd,
+		}
+		cmd = exec.CommandContext(ctx, "docker", args...)
+	} else {
+		// Native fallback
+		switch lang.Filename {
+		case "main.py":
+			cmd = exec.CommandContext(ctx, "python3", codePath)
+		case "main.js":
+			cmd = exec.CommandContext(ctx, "node", codePath)
+		default:
+			conn.WriteJSON(WSResponse{Type: "error", Data: "Native execution not supported"})
+			return
+		}
+		cmd.Dir = tmp
+	}
+
+	// Setup pipes
+	stdinPipe, err := cmd.StdinPipe()
+	if err != nil {
+		conn.WriteJSON(WSResponse{Type: "error", Data: err.Error()})
+		return
+	}
+
+	stdoutPipe, err := cmd.StdoutPipe()
+	if err != nil {
+		conn.WriteJSON(WSResponse{Type: "error", Data: err.Error()})
+		return
+	}
+
+	stderrPipe, err := cmd.StderrPipe()
+	if err != nil {
+		conn.WriteJSON(WSResponse{Type: "error", Data: err.Error()})
+		return
+	}
+
+	// Start process
+	if err := cmd.Start(); err != nil {
+		conn.WriteJSON(WSResponse{Type: "error", Data: err.Error()})
+		return
+	}
+
+	var wg sync.WaitGroup
+	done := make(chan struct{})
+
+	// Stream stdout
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		reader := bufio.NewReader(stdoutPipe)
+		buf := make([]byte, 1024)
+		for {
+			n, err := reader.Read(buf)
+			if n > 0 {
+				conn.WriteJSON(WSResponse{Type: "stdout", Data: string(buf[:n])})
+			}
+			if err != nil {
+				return
+			}
+		}
+	}()
+
+	// Stream stderr
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		reader := bufio.NewReader(stderrPipe)
+		buf := make([]byte, 1024)
+		for {
+			n, err := reader.Read(buf)
+			if n > 0 {
+				conn.WriteJSON(WSResponse{Type: "stderr", Data: string(buf[:n])})
+			}
+			if err != nil {
+				return
+			}
+		}
+	}()
+
+	// Handle incoming messages (stdin)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer stdinPipe.Close()
+		for {
+			var msg WSMessage
+			if err := conn.ReadJSON(&msg); err != nil {
+				log.Printf("[WS] Error reading message: %v", err)
+				return
+			}
+			switch msg.Type {
+			case "stdin":
+				log.Printf("[WS] Received stdin: %q", msg.Data)
+				n, err := stdinPipe.Write([]byte(msg.Data))
+				log.Printf("[WS] Wrote %d bytes to stdin, err: %v", n, err)
+			case "kill":
+				log.Printf("[WS] Received kill")
+				cancel()
+				return
+			}
+		}
+	}()
+
+	// Wait for process
+	go func() {
+		cmd.Wait()
+		close(done)
+	}()
+
+	<-done
+	wg.Wait()
+
+	exitCode := 0
+	if cmd.ProcessState != nil {
+		exitCode = cmd.ProcessState.ExitCode()
+	}
+	conn.WriteJSON(WSResponse{Type: "exit", Code: exitCode})
 }
 
-func main() {
-	/*
-		Minimal HTTP server.
+// =============================================================================
+// HEALTH CHECK
+// =============================================================================
 
-		Intentionally no framework:
-		- Fewer dependencies
-		- Predictable behavior
-		- Easier to containerize and scale later
-	*/
-	fmt.Print("running")
-	http.HandleFunc("/health", healthHandler)
-	http.HandleFunc("/run", runHandler)
-	http.ListenAndServe(":8080", nil)
+func healthHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status": "ok",
+		"docker": config.DockerAvail,
+	})
+}
+
+// =============================================================================
+// UTILITIES
+// =============================================================================
+
+type limitedWriter struct {
+	w       io.Writer
+	limit   int
+	written int
+}
+
+func (lw *limitedWriter) Write(p []byte) (int, error) {
+	if lw.written >= lw.limit {
+		return len(p), nil
+	}
+	remaining := lw.limit - lw.written
+	if len(p) > remaining {
+		p = p[:remaining]
+	}
+	n, err := lw.w.Write(p)
+	lw.written += n
+	return n, err
+}
+
+func checkDocker() bool {
+	cmd := exec.Command("docker", "info")
+	return cmd.Run() == nil
+}
+
+// =============================================================================
+// MAIN
+// =============================================================================
+
+func main() {
+	// Check Docker availability
+	config.DockerAvail = checkDocker()
+
+	mode := "NATIVE (no Docker)"
+	if config.DockerAvail {
+		mode = "DOCKER"
+	}
+
+	fmt.Printf(`
+╔═══════════════════════════════════════════╗
+║          CODE RUNNER SERVER               ║
+╠═══════════════════════════════════════════╣
+║  Mode:   %-32s ║
+║  Port:   %-32s ║
+║  Batch:  POST /run                        ║
+║  Stream: WS   /ws                         ║
+║  Health: GET  /health                     ║
+╚═══════════════════════════════════════════╝
+`, mode, config.Port)
+
+	http.HandleFunc("/health", corsMiddleware(healthHandler))
+	http.HandleFunc("/run", corsMiddleware(runHandler))
+	http.HandleFunc("/ws", wsHandler)
+
+	fmt.Printf("\n🚀 Server running on http://0.0.0.0:%s\n\n", config.Port)
+	if err := http.ListenAndServe(":"+config.Port, nil); err != nil {
+		fmt.Fprintf(os.Stderr, "Server error: %v\n", err)
+		os.Exit(1)
+	}
 }

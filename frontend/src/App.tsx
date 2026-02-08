@@ -19,7 +19,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import Header from "./components/Header";
 import Sidebar from "./components/Sidebar";
 import Editor from "./components/Editor";
-import Output from "./components/Output";
+import XTerminal from "./components/XTerminal";
 import Settings from "./components/Settings";
 import StatusBar from "./components/StatusBar";
 import Resizer from "./components/Resizer";
@@ -599,7 +599,7 @@ export default function App() {
    * - stdin: Standard input (empty for now)
    *
    * The backend runs the code in a Docker container and returns stdout/stderr.
-   * Falls back to Judge0 if backend is unavailable.
+   * Uses WebSocket for interactive terminal, falls back to batch execution.
    */
   const runCode = useCallback(async () => {
     if (isRunning || !activeFile) return;
@@ -611,6 +611,14 @@ export default function App() {
       setOutputPinned(true);
     }
 
+    // Try to use interactive terminal via WebSocket
+    if (window.terminalAPI) {
+      window.terminalAPI.run(activeFile.language, currentContentRef.current);
+      setIsRunning(false);
+      return;
+    }
+
+    // Fallback to batch execution
     try {
       const result = await executeCode({
         language: activeFile.language,
@@ -803,9 +811,10 @@ export default function App() {
                 </button>
               )}
               
-              <Output
-                stdout={output.stdout}
-                stderr={output.stderr}
+              {/* Interactive Terminal (XTerminal) - primary */}
+              <XTerminal 
+                isVisible={true}
+                onClose={() => setOutputPinned(false)}
               />
             </div>
           </div>
