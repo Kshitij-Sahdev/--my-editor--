@@ -4,4 +4,5 @@ RUN useradd -m runner
 USER runner
 WORKDIR /app
 
-CMD ["bash", "-c", "javac Main.java && java Main"]
+# Compile to /tmp (tmpfs writable), then run from there
+CMD ["bash", "-c", "javac -d /tmp Main.java && java -cp /tmp Main"]

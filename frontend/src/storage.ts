@@ -238,3 +238,67 @@ export function getFilesInFolder(
       return a.name.localeCompare(b.name);
     });
 }
+
+// =============================================================================
+// EXECUTION PERSISTENCE
+// =============================================================================
+
+/** LocalStorage key for last execution result */
+const EXECUTION_STORAGE_KEY = "code-editor-last-execution";
+
+/**
+ * Stored execution result with metadata.
+ */
+export interface StoredExecution {
+  /** File ID that was executed */
+  fileId: string;
+  /** Language of the file */
+  language: Language;
+  /** Standard output */
+  stdout: string;
+  /** Standard error */
+  stderr: string;
+  /** Which backend was used */
+  source: "primary" | "judge0" | "offline";
+  /** Timestamp of execution */
+  timestamp: number;
+}
+
+/**
+ * Save the last execution result to localStorage.
+ * 
+ * @param execution - Execution result to persist
+ */
+export function saveLastExecution(execution: StoredExecution): void {
+  try {
+    localStorage.setItem(EXECUTION_STORAGE_KEY, JSON.stringify(execution));
+  } catch (error) {
+    console.warn("Failed to save execution result:", error);
+  }
+}
+
+/**
+ * Load the last execution result from localStorage.
+ * 
+ * @returns The stored execution or null if none exists
+ */
+export function loadLastExecution(): StoredExecution | null {
+  try {
+    const stored = localStorage.getItem(EXECUTION_STORAGE_KEY);
+    if (!stored) return null;
+    return JSON.parse(stored) as StoredExecution;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Clear the last execution result from localStorage.
+ */
+export function clearLastExecution(): void {
+  try {
+    localStorage.removeItem(EXECUTION_STORAGE_KEY);
+  } catch {
+    // Ignore errors
+  }
+}

@@ -26,6 +26,8 @@ interface HeaderProps {
   onRun: () => void;
   /** Whether code is currently being executed */
   isRunning: boolean;
+  /** Whether the app is offline/disconnected */
+  isOffline?: boolean;
   /** Whether the app is in mobile/portrait mode */
   isMobile?: boolean;
   /** Whether sidebar is visible (for mobile toggle) */
@@ -156,6 +158,7 @@ export default function Header({
   activeFile, 
   onRun, 
   isRunning,
+  isOffline = false,
   isMobile = false,
   sidebarVisible = false,
   onToggleSidebar,
@@ -217,6 +220,24 @@ export default function Header({
           </div>
         )}
 
+        {/* Offline indicator */}
+        {isOffline && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '6px 12px',
+            backgroundColor: 'var(--color-warning-subtle)',
+            borderRadius: '8px',
+            fontSize: '12px',
+            color: 'var(--color-warning)',
+            fontFamily: 'var(--font-mono)',
+          }}>
+            <span style={{ fontSize: '14px' }}>⚡</span>
+            <span>Offline</span>
+          </div>
+        )}
+
         {/* Run button */}
         <button
           onClick={onRun}
@@ -226,6 +247,7 @@ export default function Header({
             ...(canRun && !isRunning ? styles.runButtonEnabled : styles.runButtonDisabled),
           }}
           className={canRun && !isRunning ? 'hover-lift' : ''}
+          title={isOffline ? 'Running with fallback (backend unavailable)' : undefined}
         >
           {isRunning ? (
             // Spinning loader while executing

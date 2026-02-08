@@ -163,8 +163,14 @@ func runHandler(w http.ResponseWriter, r *http.Request) {
 		- CPU limits do NOT stop infinite loops.
 		- Node, Java, Go can run forever otherwise.
 		- Context cancellation guarantees docker is killed.
+
+		Java/Go need more time for compilation.
 	*/
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	timeout := 5 * time.Second
+	if req.Language == "java" || req.Language == "go" || req.Language == "cpp" {
+		timeout = 10 * time.Second
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	/*
@@ -180,21 +186,32 @@ func runHandler(w http.ResponseWriter, r *http.Request) {
 		- no-new-privileges       → prevent privilege escalation
 		- seccomp=default         → block dangerous syscalls
 		- volume mount            → only /app is writable
+		- tmpfs mounts            → writable temp dirs for compilers
 	*/
-	cmd := exec.CommandContext(
-		ctx,
-		"docker", "run", "--rm",
+
+	// Compiled languages need more CPU for compilation
+	cpuLimit := "0.5"
+	if req.Language == "go" || req.Language == "java" || req.Language == "cpp" {
+		cpuLimit = "1.0"
+	}
+
+	args := []string{
+		"run", "--rm",
 		"--network=none",
 		"--memory=256m",
 		"--memory-swap=256m",
-		"--cpus=0.5",
-		"--pids-limit=32",
+		"--cpus=" + cpuLimit,
+		"--pids-limit=128",
 		"--read-only",
 		"--cap-drop=ALL",
 		"--security-opt", "no-new-privileges",
-		"-v", tmp+":/app:rw",
-		image,
-	)
+		"--tmpfs", "/tmp:rw,exec,size=64m",
+		"-v", tmp + ":/app:rw",
+	}
+
+	args = append(args, image)
+
+	cmd := exec.CommandContext(ctx, "docker", args...)
 
 	println("DOCKER CMD:", cmd.String())
 
@@ -240,6 +257,26 @@ func runHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(resp)
 }
 
+func healthHandler(w http.ResponseWriter, r *http.Request) {
+	/*
+		Health check endpoint for frontend connectivity detection.
+		Simple JSON response indicating service is available.
+	*/
+	// Handle CORS preflight
+	if r.Method == http.MethodOptions {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+}
+
 func main() {
 	/*
 		Minimal HTTP server.
@@ -250,6 +287,7 @@ func main() {
 		- Easier to containerize and scale later
 	*/
 	fmt.Print("running")
+	http.HandleFunc("/health", healthHandler)
 	http.HandleFunc("/run", runHandler)
 	http.ListenAndServe(":8080", nil)
 }

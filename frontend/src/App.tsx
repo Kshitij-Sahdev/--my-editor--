@@ -24,6 +24,8 @@ import Settings from "./components/Settings";
 import StatusBar from "./components/StatusBar";
 import Resizer from "./components/Resizer";
 import { useIsMobile } from "./hooks/useIsMobile";
+import { useNetworkStatus } from "./hooks/network";
+import { executeCode } from "./hooks/execute";
 import type { AppState, FileItem, Commit, Language, RunOutput, EditorSettings } from "./types";
 import {
   loadState,
@@ -32,6 +34,8 @@ import {
   createFolder,
   createCommit,
   getFileCommits,
+  saveLastExecution,
+  loadLastExecution,
 } from "./storage";
 import { THEME_CSS_VARS, AVAILABLE_FONTS } from "./types";
 
@@ -44,13 +48,6 @@ const SIDEBAR_WIDTH = 280;
 
 /** Default height for the output panel in pixels (always at bottom) */
 const OUTPUT_HEIGHT = 250;
-
-/**
- * Go backend URL for code execution.
- * The backend should be running at this address (see main.go).
- * It accepts POST requests with { language, code, stdin }.
- */
-const API_URL = "http://localhost:8080";
 
 // =============================================================================
 // STYLES
@@ -289,6 +286,9 @@ export default function App() {
   /** Detect mobile/portrait mode */
   const isMobile = useIsMobile();
 
+  /** Network connectivity status */
+  const networkStatus = useNetworkStatus();
+
   /**
    * Ref to track current editor content without triggering re-renders.
    * Still used internally for immediate access (e.g., in runCode).
@@ -319,6 +319,15 @@ export default function App() {
       // Set saved content to the latest commit or original file content
       const fileCommits = getFileCommits(loaded.commits, activeFile.id);
       setSavedContent(fileCommits.length > 0 ? fileCommits[0].content : activeFile.content);
+    }
+
+    // Restore last execution result if it exists
+    const lastExecution = loadLastExecution();
+    if (lastExecution) {
+      setOutput({
+        stdout: lastExecution.stdout,
+        stderr: lastExecution.stderr,
+      });
     }
   }, []);
 
@@ -590,6 +599,7 @@ export default function App() {
    * - stdin: Standard input (empty for now)
    *
    * The backend runs the code in a Docker container and returns stdout/stderr.
+   * Falls back to Judge0 if backend is unavailable.
    */
   const runCode = useCallback(async () => {
     if (isRunning || !activeFile) return;
@@ -602,27 +612,31 @@ export default function App() {
     }
 
     try {
-      const response = await fetch(`${API_URL}/run`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          language: activeFile.language,
-          code: currentContentRef.current,
-          stdin: "",
-        }),
+      const result = await executeCode({
+        language: activeFile.language,
+        code: currentContentRef.current,
+        stdin: "",
       });
 
-      const data = await response.json();
-      setOutput(data);
+      setOutput({
+        stdout: result.stdout,
+        stderr: result.stderr,
+      });
+
+      // Persist execution result
+      saveLastExecution({
+        fileId: activeFile.id,
+        language: activeFile.language,
+        stdout: result.stdout,
+        stderr: result.stderr,
+        source: result.source,
+        timestamp: Date.now(),
+      });
     } catch {
-      // Network error (backend not running, CORS, etc.)
+      // Unexpected error
       setOutput({
         stdout: "",
-        stderr:
-          "Network error: Could not reach the backend server.\n\n" +
-          "Make sure the Go backend is running:\n" +
-          "  go run main.go\n\n" +
-          "The server should be listening on http://localhost:8080",
+        stderr: "An unexpected error occurred while executing code.",
       });
     } finally {
       setIsRunning(false);
@@ -709,6 +723,7 @@ export default function App() {
         activeFile={activeFile || null}
         onRun={runCode}
         isRunning={isRunning}
+        isOffline={!networkStatus.isConnected}
         isMobile={isMobile}
         sidebarVisible={sidebarVisible}
         onToggleSidebar={handleToggleSidebar}
