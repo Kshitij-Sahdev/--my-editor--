@@ -622,15 +622,15 @@ func main() {
 ╠═══════════════════════════════════════════╣
 ║  Mode:   %-32s ║
 ║  Port:   %-32s ║
-║  Batch:  POST /run                        ║
-║  Stream: WS   /ws                         ║
-║  Health: GET  /health                     ║
+║  Batch:  POST /api/run                    ║
+║  Stream: WS   /api/ws                     ║
+║  Health: GET  /api/health                 ║
 ╚═══════════════════════════════════════════╝
 `, mode, config.Port)
 
-	http.HandleFunc("/health", corsMiddleware(healthHandler))
-	http.HandleFunc("/run", corsMiddleware(runHandler))
-	http.HandleFunc("/ws", wsHandler)
+	http.HandleFunc("/api/health", corsMiddleware(healthHandler))
+	http.HandleFunc("/api/run", corsMiddleware(runHandler))
+	http.HandleFunc("/api/ws", wsHandler)
 
 	fmt.Printf("\n🚀 Server running on http://0.0.0.0:%s\n\n", config.Port)
 	if err := http.ListenAndServe(":"+config.Port, nil); err != nil {

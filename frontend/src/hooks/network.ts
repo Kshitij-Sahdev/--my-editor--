@@ -9,8 +9,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 
-/** Backend API URL - should match App.tsx */
-const API_URL = "http://localhost:8080";
+/** Backend API URL - use relative path for production */
+const API_URL = import.meta.env.VITE_API_URL || "";
 
 /** How often to poll the health endpoint (ms) */
 const HEALTH_POLL_INTERVAL = 10000;
@@ -45,7 +45,7 @@ export function useNetworkStatus(): NetworkStatus {
 
   /**
    * Check if the backend is reachable and healthy.
-   * Uses a simple GET to /health with a timeout.
+   * Uses a simple GET to /api/health with a timeout.
    */
   const checkHealth = useCallback(async (): Promise<boolean> => {
     if (!navigator.onLine) {
@@ -58,7 +58,7 @@ export function useNetworkStatus(): NetworkStatus {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT);
 
-      const response = await fetch(`${API_URL}/health`, {
+      const response = await fetch(`${API_URL}/api/health`, {
         method: "GET",
         signal: controller.signal,
       });

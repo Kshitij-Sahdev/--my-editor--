@@ -29,8 +29,17 @@ interface WSResponse {
   code?: number;
 }
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
-const WS_URL = API_URL.replace(/^http/, "ws") + "/ws";
+// Use relative URL for production, fallback for local dev
+const getWsUrl = () => {
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL.replace(/^http/, "ws") + "/api/ws";
+  }
+  // In production, use relative path (same host)
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  return `${protocol}//${window.location.host}/api/ws`;
+};
+
+const WS_URL = getWsUrl();
 
 export function XTerminal({ isVisible, onClose }: TerminalProps) {
   const containerRef = useRef<HTMLDivElement>(null);

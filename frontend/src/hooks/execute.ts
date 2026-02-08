@@ -9,8 +9,8 @@
 
 import type { Language, RunOutput } from "../types";
 
-/** Primary backend API URL */
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
+/** Primary backend API URL - use relative path in production */
+const API_URL = import.meta.env.VITE_API_URL || "";
 
 /** Judge0 API URL */
 const JUDGE0_API = import.meta.env.VITE_JUDGE0_API || "https://judge0-ce.p.rapidapi.com";
@@ -60,7 +60,7 @@ async function checkBackendHealth(): Promise<boolean> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 3000);
 
-    const response = await fetch(`${API_URL}/health`, {
+    const response = await fetch(`${API_URL}/api/health`, {
       method: "GET",
       signal: controller.signal,
     });
@@ -80,7 +80,7 @@ async function executePrimary(payload: ExecutePayload): Promise<ExecuteResult> {
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
 
   try {
-    const response = await fetch(`${API_URL}/run`, {
+    const response = await fetch(`${API_URL}/api/run`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
