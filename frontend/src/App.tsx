@@ -764,9 +764,21 @@ export default function App() {
                 <button
                   onClick={() => setOutputPinned(!outputPinned)}
                   style={{
-                    ...styles.pinButton,
-                    ...styles.outputPinButton,
-                    ...(outputPinned ? styles.pinButtonActive : styles.pinButtonInactive),
+                    position: 'absolute',
+                    top: '6px',
+                    right: '12px',
+                    zIndex: 10,
+                    width: '28px',
+                    height: '28px',
+                    borderRadius: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.2s',
+                    cursor: 'pointer',
+                    border: 'none',
+                    backgroundColor: outputPinned ? 'var(--color-accent)' : 'var(--color-surface-2)',
+                    color: outputPinned ? 'white' : 'var(--color-text-muted)',
                   }}
                   title={outputPinned ? 'Unpin output' : 'Pin output'}
                 >
