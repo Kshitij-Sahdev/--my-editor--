@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -24,23 +23,23 @@ import (
 // =============================================================================
 
 var config = struct {
-	Port           string
-	MaxCodeSize    int
-	MaxStdinSize   int
-	MaxOutputSize  int
-	MaxConcurrent  int
-	TimeoutBatch   time.Duration
-	TimeoutStream  time.Duration
-	DockerAvail    bool
+	Port          string
+	MaxCodeSize   int
+	MaxStdinSize  int
+	MaxOutputSize int
+	MaxConcurrent int
+	TimeoutBatch  time.Duration
+	TimeoutStream time.Duration
+	DockerAvail   bool
 }{
-	Port:           getEnv("PORT", "8080"),
-	MaxCodeSize:    64 * 1024,      // 64KB
-	MaxStdinSize:   1 * 1024 * 1024, // 1MB
-	MaxOutputSize:  1 * 1024 * 1024, // 1MB
-	MaxConcurrent:  3,
-	TimeoutBatch:   10 * time.Second,
-	TimeoutStream:  5 * time.Minute,
-	DockerAvail:    false,
+	Port:          getEnv("PORT", "8080"),
+	MaxCodeSize:   64 * 1024,       // 64KB
+	MaxStdinSize:  1 * 1024 * 1024, // 1MB
+	MaxOutputSize: 1 * 1024 * 1024, // 1MB
+	MaxConcurrent: 3,
+	TimeoutBatch:  10 * time.Second,
+	TimeoutStream: 5 * time.Minute,
+	DockerAvail:   false,
 }
 
 func getEnv(key, fallback string) string {
@@ -271,7 +270,7 @@ func executeDocker(code, stdin string, lang LangConfig) RunResponse {
 func executeNative(code, stdin string, lang LangConfig) RunResponse {
 	// Fallback for systems without Docker (Termux, etc.)
 	// Only supports interpreted languages safely
-	
+
 	tmp, err := os.MkdirTemp("", "run-")
 	if err != nil {
 		return RunResponse{Stderr: err.Error()}
@@ -321,7 +320,7 @@ var upgrader = websocket.Upgrader{
 }
 
 type WSMessage struct {
-	Type     string `json:"type"` // "init", "stdin", "resize", "kill"
+	Type     string `json:"type"` // "init", "stdin", "eof", "kill"
 	Language string `json:"language,omitempty"`
 	Code     string `json:"code,omitempty"`
 	Data     string `json:"data,omitempty"` // stdin data
@@ -350,6 +349,9 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close()
 
+	fmt.Println("\n----------------------------------------")
+	fmt.Println("NEW CONNECTION from", clientIP)
+
 	// Read init message
 	var initMsg WSMessage
 	if err := conn.ReadJSON(&initMsg); err != nil || initMsg.Type != "init" {
@@ -362,6 +364,9 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 		conn.WriteJSON(WSResponse{Type: "error", Data: "Unsupported language"})
 		return
 	}
+
+	fmt.Printf("RUNNING: %s\n", initMsg.Language)
+	fmt.Println("----------------------------------------")
 
 	// Create temp dir
 	tmp, err := os.MkdirTemp("", "ws-run-")
@@ -446,6 +451,8 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fmt.Println("STARTED")
+
 	var wg sync.WaitGroup
 	done := make(chan struct{})
 
@@ -458,7 +465,13 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 		for {
 			n, err := reader.Read(buf)
 			if n > 0 {
-				conn.WriteJSON(WSResponse{Type: "stdout", Data: string(buf[:n])})
+				output := string(buf[:n])
+				preview := strings.ReplaceAll(output, "\n", "\\n")
+				if len(preview) > 80 {
+					preview = preview[:80] + "..."
+				}
+				fmt.Printf(">> OUT: %s\n", preview)
+				conn.WriteJSON(WSResponse{Type: "stdout", Data: output})
 			}
 			if err != nil {
 				return
@@ -475,7 +488,13 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 		for {
 			n, err := reader.Read(buf)
 			if n > 0 {
-				conn.WriteJSON(WSResponse{Type: "stderr", Data: string(buf[:n])})
+				output := string(buf[:n])
+				preview := strings.ReplaceAll(output, "\n", "\\n")
+				if len(preview) > 80 {
+					preview = preview[:80] + "..."
+				}
+				fmt.Printf(">> ERR: %s\n", preview)
+				conn.WriteJSON(WSResponse{Type: "stderr", Data: output})
 			}
 			if err != nil {
 				return
@@ -484,6 +503,7 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	// Handle incoming messages (stdin)
+	var inputBuffer strings.Builder
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -491,16 +511,28 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 		for {
 			var msg WSMessage
 			if err := conn.ReadJSON(&msg); err != nil {
-				log.Printf("[WS] Error reading message: %v", err)
 				return
 			}
 			switch msg.Type {
 			case "stdin":
-				log.Printf("[WS] Received stdin: %q", msg.Data)
-				n, err := stdinPipe.Write([]byte(msg.Data))
-				log.Printf("[WS] Wrote %d bytes to stdin, err: %v", n, err)
+				input := msg.Data
+				stdinPipe.Write([]byte(input))
+
+				// Buffer input and print on newline
+				if input == "\n" || input == "\r" || input == "\r\n" {
+					line := inputBuffer.String()
+					inputBuffer.Reset()
+					fmt.Printf(">> IN:  %s<enter>\n", line)
+				} else {
+					inputBuffer.WriteString(input)
+				}
+			case "eof":
+				// Close stdin - signals EOF to the process (like Ctrl+D)
+				fmt.Println(">> EOF (Ctrl+D)")
+				stdinPipe.Close()
+				return
 			case "kill":
-				log.Printf("[WS] Received kill")
+				fmt.Println(">> KILL")
 				cancel()
 				return
 			}
@@ -520,6 +552,14 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 	if cmd.ProcessState != nil {
 		exitCode = cmd.ProcessState.ExitCode()
 	}
+
+	if exitCode == 0 {
+		fmt.Println("DONE (exit 0)")
+	} else {
+		fmt.Printf("FAILED (exit %d)\n", exitCode)
+	}
+	fmt.Println("----------------------------------------\n")
+
 	conn.WriteJSON(WSResponse{Type: "exit", Code: exitCode})
 }
 

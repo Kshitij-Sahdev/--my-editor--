@@ -17,7 +17,7 @@ interface TerminalProps {
 type WSState = "disconnected" | "connecting" | "connected" | "running";
 
 interface WSMessage {
-  type: "init" | "stdin" | "kill";
+  type: "init" | "stdin" | "eof" | "kill";
   language?: string;
   code?: string;
   data?: string;
@@ -83,12 +83,15 @@ export function XTerminal({ isVisible, onClose }: TerminalProps) {
     terminal.focus();
     fitAddon.fit();
 
-    terminal.writeln("\x1b[36m╔═══════════════════════════════════════╗\x1b[0m");
-    terminal.writeln("\x1b[36m║\x1b[0m   \x1b[1;33mInteractive Terminal\x1b[0m                \x1b[36m║\x1b[0m");
-    terminal.writeln("\x1b[36m╠═══════════════════════════════════════╣\x1b[0m");
-    terminal.writeln("\x1b[36m║\x1b[0m  Press \x1b[32mRun\x1b[0m to execute your code       \x1b[36m║\x1b[0m");
-    terminal.writeln("\x1b[36m║\x1b[0m  Press \x1b[33mCtrl+C\x1b[0m to kill the process     \x1b[36m║\x1b[0m");
-    terminal.writeln("\x1b[36m╚═══════════════════════════════════════╝\x1b[0m");
+    terminal.writeln("\x1b[36m╔════════════════════════════════════════════════╗\x1b[0m");
+    terminal.writeln("\x1b[36m║\x1b[0m   \x1b[1;33mInteractive Terminal\x1b[0m                         \x1b[36m║\x1b[0m");
+    terminal.writeln("\x1b[36m╠════════════════════════════════════════════════╣\x1b[0m");
+    terminal.writeln("\x1b[36m║\x1b[0m  \x1b[33mCtrl+C\x1b[0m = kill process                         \x1b[36m║\x1b[0m");
+    terminal.writeln("\x1b[36m║\x1b[0m  \x1b[33mCtrl+D\x1b[0m = end input (EOF for JS/stream-based)  \x1b[36m║\x1b[0m");
+    terminal.writeln("\x1b[36m╠════════════════════════════════════════════════╣\x1b[0m");
+    terminal.writeln("\x1b[36m║\x1b[0m  \x1b[90mTip: Create \x1b[35msettings.conf\x1b[90m for editor config\x1b[0m  \x1b[36m║\x1b[0m");
+    terminal.writeln("\x1b[36m║\x1b[0m  \x1b[90mTip: Name a file \x1b[34msnow\x1b[90m/\x1b[34mwinter\x1b[90m for a surprise\x1b[0m ❄️\x1b[36m║\x1b[0m");
+    terminal.writeln("\x1b[36m╚════════════════════════════════════════════════╝\x1b[0m");
     terminal.writeln("");
 
     terminalRef.current = terminal;
@@ -109,6 +112,16 @@ export function XTerminal({ isVisible, onClose }: TerminalProps) {
         return;
       }
       
+      // Ctrl+D (ASCII code 4) - send EOF (end of input)
+      if (data === "\x04") {
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+          const msg: WSMessage = { type: "eof" };
+          wsRef.current.send(JSON.stringify(msg));
+        }
+        term.writeln("\r\n\x1b[90m[EOF]\x1b[0m");
+        return;
+      }
+      
       // Echo input locally
       if (data === "\r") {
         term.write("\r\n");
@@ -125,11 +138,10 @@ export function XTerminal({ isVisible, onClose }: TerminalProps) {
       const runState = stateRef.current;
       
       if (wsState === WebSocket.OPEN && runState === "running") {
-        // Convert Enter (\r) to newline (\n) for stdin - Python expects \n
+        // Convert Enter (\r) to newline (\n) for stdin
         let stdinData = data;
         if (data === "\r") {
           stdinData = "\n";
-          console.log("[stdin] Converting \\r to \\n");
         }
         const msg: WSMessage = { type: "stdin", data: stdinData };
         wsRef.current!.send(JSON.stringify(msg));
