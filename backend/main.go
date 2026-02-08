@@ -5,10 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync"
 	"time"
 )
 
@@ -39,6 +41,79 @@ type RunResponse struct {
 	Stderr string `json:"stderr"`
 }
 
+/*
+Security limits.
+
+These prevent resource exhaustion attacks.
+*/
+const (
+	// Maximum code size (64KB should be enough for any reasonable program)
+	MaxCodeSize = 64 * 1024
+	// Maximum stdin size (1MB for competitive programming input)
+	MaxStdinSize = 1 * 1024 * 1024
+	// Maximum output size (1MB to prevent memory exhaustion)
+	MaxOutputSize = 1 * 1024 * 1024
+	// Rate limit: max concurrent executions per IP
+	MaxConcurrentPerIP = 3
+)
+
+/*
+Simple rate limiter by IP.
+
+Not production-grade but prevents basic abuse.
+*/
+var (
+	ipLocks   = make(map[string]int)
+	ipLocksMu sync.Mutex
+)
+
+func acquireSlot(ip string) bool {
+	ipLocksMu.Lock()
+	defer ipLocksMu.Unlock()
+	if ipLocks[ip] >= MaxConcurrentPerIP {
+		return false
+	}
+	ipLocks[ip]++
+	return true
+}
+
+func releaseSlot(ip string) {
+	ipLocksMu.Lock()
+	defer ipLocksMu.Unlock()
+	if ipLocks[ip] > 0 {
+		ipLocks[ip]--
+	}
+}
+
+/*
+limitedWriter wraps an io.Writer and limits total bytes written.
+
+Prevents malicious code from exhausting memory with huge output.
+*/
+type limitedWriter struct {
+	w         io.Writer
+	limit     int
+	written   int
+	truncated bool
+}
+
+func (lw *limitedWriter) Write(p []byte) (int, error) {
+	if lw.written >= lw.limit {
+		lw.truncated = true
+		return len(p), nil // Pretend we wrote it to avoid breaking pipe
+	}
+
+	remaining := lw.limit - lw.written
+	if len(p) > remaining {
+		p = p[:remaining]
+		lw.truncated = true
+	}
+
+	n, err := lw.w.Write(p)
+	lw.written += n
+	return n, err
+}
+
 func runHandler(w http.ResponseWriter, r *http.Request) {
 
 	/*
@@ -62,15 +137,48 @@ func runHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 
 	/*
-		Decode request payload.
+		Rate limiting by IP.
 
-		No strict validation here on purpose.
-		Why:
-		- Bad code is expected.
-		- Invalid programs are handled by the sandbox, not the API.
+		Prevents single user from exhausting server resources.
+	*/
+	clientIP := r.RemoteAddr
+	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
+		clientIP = forwarded
+	}
+
+	if !acquireSlot(clientIP) {
+		http.Error(w, "Too many concurrent requests. Please wait.", http.StatusTooManyRequests)
+		return
+	}
+	defer releaseSlot(clientIP)
+
+	/*
+		Limit request body size.
+
+		Prevents memory exhaustion from huge payloads.
+	*/
+	r.Body = http.MaxBytesReader(w, r.Body, MaxCodeSize+MaxStdinSize+1024)
+
+	/*
+		Decode request payload.
 	*/
 	var req RunRequest
-	json.NewDecoder(r.Body).Decode(&req)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request or payload too large", http.StatusBadRequest)
+		return
+	}
+
+	/*
+		Validate input sizes.
+	*/
+	if len(req.Code) > MaxCodeSize {
+		http.Error(w, "Code too large (max 64KB)", http.StatusBadRequest)
+		return
+	}
+	if len(req.Stdin) > MaxStdinSize {
+		http.Error(w, "Input too large (max 1MB)", http.StatusBadRequest)
+		return
+	}
 
 	/*
 		Create a temporary execution directory.
@@ -143,18 +251,6 @@ func runHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	/*
-		Debug visibility (optional).
-
-		Useful during development to confirm:
-		- Correct filename is written.
-		- Nothing extra is leaking into the directory.
-	*/
-	files, _ := os.ReadDir(tmp)
-	for _, f := range files {
-		println("TMP FILE:", f.Name())
-	}
-
-	/*
 		Hard execution timeout.
 
 		This is NON-NEGOTIABLE.
@@ -205,6 +301,8 @@ func runHandler(w http.ResponseWriter, r *http.Request) {
 		"--read-only",
 		"--cap-drop=ALL",
 		"--security-opt", "no-new-privileges",
+		"--ulimit", "fsize=10485760:10485760", // 10MB max file size
+		"--ulimit", "nofile=256:256", // Max open files (Go compiler needs ~100+)
 		"--tmpfs", "/tmp:rw,exec,size=64m",
 		"-v", tmp + ":/app:rw",
 	}
@@ -213,7 +311,8 @@ func runHandler(w http.ResponseWriter, r *http.Request) {
 
 	cmd := exec.CommandContext(ctx, "docker", args...)
 
-	println("DOCKER CMD:", cmd.String())
+	// Log execution details
+	fmt.Printf("\n[RUN] lang=%s | timeout=%v | cpu=%s | file=%s\n", req.Language, timeout, cpuLimit, filename)
 
 	/*
 		Forward stdin to the container.
@@ -224,9 +323,16 @@ func runHandler(w http.ResponseWriter, r *http.Request) {
 	*/
 	cmd.Stdin = bytes.NewBufferString(req.Stdin)
 
+	/*
+		Limit output size to prevent memory exhaustion.
+
+		Using io.LimitReader pattern with a buffer.
+	*/
 	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+	stdoutLimited := &limitedWriter{w: &stdout, limit: MaxOutputSize}
+	stderrLimited := &limitedWriter{w: &stderr, limit: MaxOutputSize}
+	cmd.Stdout = stdoutLimited
+	cmd.Stderr = stderrLimited
 
 	/*
 		Run the container.
@@ -238,9 +344,27 @@ func runHandler(w http.ResponseWriter, r *http.Request) {
 	*/
 	err = cmd.Run()
 
+	// Log completion status
+	status := "OK"
+	if err != nil {
+		status = err.Error()
+	}
+	fmt.Printf("[DONE] lang=%s | status=%s | stdout=%d bytes | stderr=%d bytes\n",
+		req.Language, status, stdout.Len(), stderr.Len())
+
+	// Check if output was truncated
+	stdoutStr := stdout.String()
+	stderrStr := stderr.String()
+	if stdoutLimited.truncated {
+		stdoutStr += "\n... [output truncated, max 1MB]"
+	}
+	if stderrLimited.truncated {
+		stderrStr += "\n... [output truncated, max 1MB]"
+	}
+
 	resp := RunResponse{
-		Stdout: stdout.String(),
-		Stderr: stderr.String(),
+		Stdout: stdoutStr,
+		Stderr: stderrStr,
 	}
 
 	/*
