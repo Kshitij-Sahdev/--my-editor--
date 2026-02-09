@@ -7,18 +7,18 @@
 
 ## 1. Problem Statement
 
-Design a **browser-based code editor** that allows users to:
-- Write code in multiple languages (Python, JavaScript, Go, C++, Java)
+Designed a **browser-based code editor** that allows users to:
+- Write code in multiple languages {Python, JavaScript, Go, C++, Java}
 - Execute code with **real-time interactive I/O** (stdin/stdout streaming)
 - Run untrusted code **securely** in isolated environments
 
 ### Functional Requirements
-- Multi-language support with syntax highlighting
+- Multi-language (5) support with syntax highlighting
 - Real-time code execution with streaming output
-- Interactive stdin (user can type input during execution)
+- Interactive stdin (user can type input during execution) (vscode clone not leetcode clone)
 - File management (create, rename, delete files)
-- Execution history
-- Works offline (with fallback)
+- File history (git like state saving - browser storage)
+- Works if server is offline (with fallback to judge0)
 
 ### Non-Functional Requirements
 - **Low latency** (<100ms to first output)
@@ -38,7 +38,7 @@ Design a **browser-based code editor** that allows users to:
 │  │   CodeMirror │  │   XTerm.js   │  │   LocalStorage/IndexedDB │   │
 │  │   (Editor)   │  │  (Terminal)  │  │   (Persistence Layer)    │   │
 │  └──────┬───────┘  └──────┬───────┘  └──────────────────────────┘   │
-│         │                 │                                          │
+│         │                 │                                         │
 │         │    ┌────────────┴────────────┐                            │
 │         │    │    WebSocket Manager    │                            │
 │         │    │  (Bidirectional Comm)   │                            │
@@ -54,11 +54,11 @@ Design a **browser-based code editor** that allows users to:
 │  │   HTTP API   │  │  WebSocket   │  │     Rate Limiter         │   │
 │  │   /run       │  │  Handler /ws │  │   (Token Bucket)         │   │
 │  └──────┬───────┘  └──────┬───────┘  └──────────────────────────┘   │
-│         │                 │                                          │
-│         └────────┬────────┘                                          │
-│                  ▼                                                   │
+│         │                 │                                         │
+│         └────────┬────────┘                                         │
+│                  ▼                                                  │
 │  ┌─────────────────────────────────────────────────────────────┐    │
-│  │                    Execution Engine                          │    │
+│  │                    Execution Engine                         │    │
 │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │    │
 │  │  │   Input     │  │   Process   │  │   Output            │  │    │
 │  │  │   Validator │  │   Manager   │  │   Streamer          │  │    │
@@ -70,11 +70,11 @@ Design a **browser-based code editor** that allows users to:
 ┌─────────────────────────────────────────────────────────────────────┐
 │                      DOCKER CONTAINERS                              │
 ├─────────────────────────────────────────────────────────────────────┤
-│  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐   │
-│  │ Python  │  │   JS    │  │   Go    │  │   C++   │  │  Java   │   │
-│  │ Runner  │  │ Runner  │  │ Runner  │  │ Runner  │  │ Runner  │   │
-│  └─────────┘  └─────────┘  └─────────┘  └─────────┘  └─────────┘   │
-│                                                                      │
+│  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐    │
+│  │ Python  │  │   JS    │  │   Go    │  │   C++   │  │  Java   │    │
+│  │ Runner  │  │ Runner  │  │ Runner  │  │ Runner  │  │ Runner  │    │
+│  └─────────┘  └─────────┘  └─────────┘  └─────────┘  └─────────┘    │
+│                                                                     │
 │  Security: --network=none, --memory=256m, --pids-limit=50           │
 │            --read-only, --no-new-privileges, tmpfs mounts           │
 └─────────────────────────────────────────────────────────────────────┘
@@ -89,12 +89,22 @@ Design a **browser-based code editor** that allows users to:
 ```
 frontend/
 ├── src/
+│   │
 │   ├── components/
-│   │   ├── Editor.tsx      # CodeMirror 6 wrapper
-│   │   ├── XTerminal.tsx   # xterm.js + WebSocket
-│   │   ├── FileTree.tsx    # Virtual file system UI
-│   │   ├── Header.tsx      # Language selector, run button
-│   │   └── ...
+│   │   ├── Editor.tsx              # CodeMirror 6 wrapper
+│   │   ├── FileTree.tsx            # Virtual file system UI
+│   │   ├── Header.tsx              # Language selector, run button
+│   │   ├── History.tsx             # Commit timeline, restore, diff preview
+│   │   ├── LangSelect.tsx          # Radix UI select component
+│   │   ├── MarkDownViewer.tsx      # GFM support, syntax highlighting, tables
+│   │   ├── Output.tsx              # (LEGACY) Static stdout/stderr (replaced by XTerminal)
+│   │   ├── Resizer.tsx             # Horizontal/vertical panel resizing
+│   │   ├── RunButton.tsx           # Isolated Run Button, Loading state, keyboard hint
+│   │   ├── Settings.tsx            # Theme, font, toggles (triggered by settings.conf)
+│   │   ├── Sidebar.tsx             # Switches between FileTree and History
+│   │   ├── StatusBar.tsx           # Language, encoding, keyboard shortcuts
+│   │   └── XTerminal.tsx           # xterm.js + WebSocket
+│   │
 │   ├── storage.ts          # LocalStorage abstraction
 │   ├── network.ts          # Online/offline detection
 │   └── types.ts            # TypeScript interfaces
@@ -102,12 +112,12 @@ frontend/
 
 #### Key Design Decisions
 
-| Component | Technology | Why |
-|-----------|------------|-----|
-| Editor | CodeMirror 6 | Modular, tree-sitter support, mobile-friendly |
-| Terminal | xterm.js | Industry standard, GPU-accelerated rendering |
-| State | React useState + localStorage | Simple, persistent, no external deps |
-| Styling | CSS Variables | Theme switching without re-render |
+| Component | Technology                    | Why                                           |
+|-----------|-------------------------------|-----------------------------------------------|
+| Editor    | CodeMirror 6                  | Modular, tree-sitter support, mobile-friendly |
+| Terminal  | xterm.js                      | Industry standard, GPU-accelerated rendering  |
+| State     | React useState + localStorage | Simple, persistent, no external deps          |
+| Styling   | CSS Variables                 | Theme switching without re-render             |
 
 #### WebSocket Message Protocol
 
@@ -166,11 +176,11 @@ func handleWebSocket(conn *websocket.Conn) {
 
 #### API Endpoints
 
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/run` | POST | Batch execution (send code, get output) |
-| `/ws` | WebSocket | Streaming execution with interactive I/O |
-| `/health` | GET | Health check for load balancers |
+| Endpoint | Method    | Purpose                                  |
+|----------|-----------|------------------------------------------|
+| `/run`   | POST      | Batch execution (send code, get output)  |
+| `/ws`    | WebSocket | Streaming execution with interactive I/O |
+| `/health`| GET       | Health check for load balancers          |
 
 ### 3.3 Docker Sandbox Design
 
@@ -187,16 +197,16 @@ ENTRYPOINT ["python", "-u", "-c"]
 
 #### Security Layers
 
-| Layer | Protection |
-|-------|------------|
-| `--network=none` | No network access |
-| `--memory=256m` | Memory limit prevents OOM attacks |
-| `--pids-limit=50` | Prevents fork bombs |
-| `--read-only` | Immutable filesystem |
-| `--no-new-privileges` | No privilege escalation |
-| `tmpfs /tmp` | Writable but ephemeral storage |
-| `timeout 30s` | Execution time limit |
-| Non-root user | Least privilege principle |
+| Layer                 | Protection                        |
+|-----------------------|-----------------------------------|
+| `--network=none`      | No network access                 |
+| `--memory=256m`       | Memory limit prevents OOM attacks |
+| `--pids-limit=50`     | Prevents fork bombs               |
+| `--read-only`         | Immutable filesystem              |
+| `--no-new-privileges` | No privilege escalation           |
+| `tmpfs /tmp`          | Writable but ephemeral storage    |
+| `timeout 30s`         | Execution time limit              |
+| Non-root user         | Least privilege principle         |
 
 ---
 
@@ -283,7 +293,7 @@ Bottleneck: Docker container spawning
 ```
                     ┌─────────────────┐
                     │  Load Balancer  │
-                    │   (nginx/HAProxy)│
+                    │  (nginx/HAProxy)│
                     └────────┬────────┘
                              │
         ┌────────────────────┼────────────────────┐
@@ -291,7 +301,7 @@ Bottleneck: Docker container spawning
         ▼                    ▼                    ▼
 ┌───────────────┐   ┌───────────────┐   ┌───────────────┐
 │   Backend 1   │   │   Backend 2   │   │   Backend 3   │
-│   (Go + Docker)│   │   (Go + Docker)│   │   (Go + Docker)│
+│  (Go + Docker)│   │  (Go + Docker)│   │  (Go + Docker)│
 └───────────────┘   └───────────────┘   └───────────────┘
         │                    │                    │
         └────────────────────┼────────────────────┘
@@ -304,13 +314,13 @@ Bottleneck: Docker container spawning
 
 ### 5.3 Horizontal Scaling Strategy
 
-| Component | Scaling Approach |
-|-----------|------------------|
-| Frontend | CDN (Cloudflare, Vercel) |
-| Backend | Stateless, add more instances |
-| WebSocket | Sticky sessions (IP hash) |
-| Execution | Container pool, pre-warmed |
-| Rate Limiting | Centralized Redis |
+| Component     | Scaling Approach              |
+|---------------|-------------------------------|
+| Frontend      | CDN (Cloudflare, Vercel)      |
+| Backend       | Stateless, add more instances |
+| WebSocket     | Sticky sessions (IP hash)     |
+| Execution     | Container pool, pre-warmed    |
+| Rate Limiting | Centralized Redis             |
 
 ---
 
@@ -318,17 +328,17 @@ Bottleneck: Docker container spawning
 
 ### 6.1 Threat Model
 
-| Threat | Mitigation |
-|--------|------------|
-| **Code Injection** | Docker isolation, no shell access |
-| **Resource Exhaustion** | Memory/CPU/time limits |
-| **Fork Bomb** | `--pids-limit=50` |
-| **Network Attack** | `--network=none` |
-| **File System Access** | `--read-only`, tmpfs |
-| **Container Escape** | Non-root, no-new-privileges |
-| **DoS** | Rate limiting (10 req/s per IP) |
-| **XSS** | React escaping, CSP headers |
-| **Large Payload** | 1MB code limit, 10MB output limit |
+| Threat                  | Mitigation                        |
+|-------------------------|-----------------------------------|
+| **Code Injection**      | Docker isolation, no shell access |
+| **Resource Exhaustion** | Memory/CPU/time limits            |
+| **Fork Bomb**           | `--pids-limit=50`                 |
+| **Network Attack**      | `--network=none`                  |
+| **File System Access**  | `--read-only`, tmpfs              |
+| **Container Escape**    | Non-root, no-new-privileges       |
+| **DoS**                 | Rate limiting (10 req/s per IP)   |
+| **XSS**                 | React escaping, CSP headers       |
+| **Large Payload**       | 1MB code limit, 10MB output limit |
 
 ### 6.2 Security Architecture Diagram
 
@@ -337,34 +347,34 @@ Bottleneck: Docker container spawning
 │                        TRUST BOUNDARY                        │
 ├──────────────────────────────────────────────────────────────┤
 │                                                              │
-│  ┌────────────┐    ┌─────────────────────────────────────┐  │
-│  │            │    │           BACKEND                   │  │
-│  │   Client   │    │  ┌─────────────────────────────┐   │  │
-│  │  (Trusted) │───>│  │      Input Validation       │   │  │
-│  │            │    │  │  • Size limits              │   │  │
-│  └────────────┘    │  │  • Language whitelist       │   │  │
-│                    │  │  • Sanitization             │   │  │
-│                    │  └─────────────┬───────────────┘   │  │
-│                    │                │                    │  │
-│                    │                ▼                    │  │
-│                    │  ┌─────────────────────────────┐   │  │
-│                    │  │      Rate Limiter           │   │  │
-│                    │  │  • 10 req/sec per IP        │   │  │
-│                    │  └─────────────┬───────────────┘   │  │
-│                    │                │                    │  │
-│                    └────────────────┼────────────────────┘  │
-│                                     │                       │
-│  ┌──────────────────────────────────┼──────────────────────┐│
-│  │              SANDBOX (Docker)    ▼                      ││
-│  │  ┌────────────────────────────────────────────────┐    ││
-│  │  │  • No network                                   │    ││
-│  │  │  • No root                                      │    ││
-│  │  │  • Read-only filesystem                         │    ││
-│  │  │  • 256MB memory                                 │    ││
-│  │  │  • 30s timeout                                  │    ││
-│  │  │  • 50 process limit                             │    ││
-│  │  └────────────────────────────────────────────────┘    ││
-│  └─────────────────────────────────────────────────────────┘│
+│  ┌────────────┐    ┌─────────────────────────────────────┐   │
+│  │            │    │           BACKEND                   │   │
+│  │   Client   │    │  ┌─────────────────────────────┐    │   │
+│  │  (Trusted) │───>│  │      Input Validation       │    │   │
+│  │            │    │  │  • Size limits              │    │   │
+│  └────────────┘    │  │  • Language whitelist       │    │   │
+│                    │  │  • Sanitization             │    │   │
+│                    │  └─────────────┬───────────────┘    │   │
+│                    │                │                    │   │
+│                    │                ▼                    │   │
+│                    │  ┌─────────────────────────────┐    │   │
+│                    │  │      Rate Limiter           │    │   │
+│                    │  │  • 10 req/sec per IP        │    │   │
+│                    │  └─────────────┬───────────────┘    │   │
+│                    │                │                    │   │
+│                    └────────────────┼────────────────────┘   │
+│                                     │                        │
+│  ┌──────────────────────────────────┼──────────────────────┐ │
+│  │              SANDBOX (Docker)    ▼                      │ │
+│  │  ┌────────────────────────────────────────────────┐     │ │
+│  │  │  • No network                                  │     │ │
+│  │  │  • No root                                     │     │ │
+│  │  │  • Read-only filesystem                        │     │ │
+│  │  │  • 256MB memory                                │     │ │
+│  │  │  • 30s timeout                                 │     │ │
+│  │  │  • 50 process limit                            │     │ │
+│  │  └────────────────────────────────────────────────┘     │ │
+│  └─────────────────────────────────────────────────────────┘ │ 
 │                                                              │
 └──────────────────────────────────────────────────────────────┘
 ```
@@ -375,21 +385,21 @@ Bottleneck: Docker container spawning
 
 ### 7.1 Implemented
 
-| Optimization | Impact |
-|--------------|--------|
-| **Pre-cached Go stdlib** | 17s → 0.7s first run |
+| Optimization                 | Impact                   |
+|------------------------------|--------------------------|
+| **Pre-cached Go stdlib**     | 17s → 0.7s first run     |
 | **Unbuffered Python** (`-u`) | Instant output streaming |
-| **Local echo in terminal** | Zero-latency typing |
-| **WebSocket compression** | 60% bandwidth reduction |
+| **Local echo in terminal**   | Zero-latency typing      |
+| **WebSocket compression**    | 60% bandwidth reduction  |
 
 ### 7.2 Future Optimizations
 
-| Optimization | Expected Impact |
-|--------------|-----------------|
-| Container pooling | 500ms → 50ms cold start |
-| Warm container reuse | Eliminate spawn overhead |
-| Code caching | Skip compilation for same code |
-| Edge deployment | <50ms global latency |
+| Optimization         | Expected Impact                |
+|----------------------|--------------------------------|
+| Container pooling    | 500ms → 50ms cold start        |
+| Warm container reuse | Eliminate spawn overhead       |
+| Code caching         | Skip compilation for same code |
+| Edge deployment      | <50ms global latency           |
 
 ---
 
@@ -397,34 +407,34 @@ Bottleneck: Docker container spawning
 
 ### 8.1 WebSocket vs HTTP Polling
 
-| Factor | WebSocket | HTTP Polling |
-|--------|-----------|--------------|
-| Latency | ✅ Low (<10ms) | ❌ High (100ms+) |
-| Complexity | ❌ Higher | ✅ Lower |
-| Scalability | ⚠️ Sticky sessions | ✅ Stateless |
-| Bidirectional | ✅ Native | ❌ Awkward |
+| Factor        | WebSocket          | HTTP Polling     |
+|---------------|--------------------|------------------|
+| Latency       | ✅ Low (<10ms)     | ❌ High (100ms+) |
+| Complexity    | ❌ Higher          | ✅ Lower         |
+| Scalability   | ⚠️ Sticky sessions | ✅ Stateless     |
+| Bidirectional | ✅ Native          | ❌ Awkward       |
 
 **Decision:** WebSocket for real-time interactive I/O
 
 ### 8.2 Docker vs gVisor/Firecracker
 
-| Factor | Docker | gVisor | Firecracker |
-|--------|--------|--------|-------------|
-| Security | ⚠️ Good | ✅ Better | ✅ Best |
-| Performance | ✅ Fast | ⚠️ Slower | ✅ Fast |
-| Complexity | ✅ Low | ⚠️ Medium | ❌ High |
-| Ecosystem | ✅ Rich | ⚠️ Limited | ⚠️ Limited |
+| Factor      | Docker  | gVisor     | Firecracker |
+|-------------|---------|------------|-------------|
+| Security    | ⚠️ Good | ✅ Better  | ✅ Best     |
+| Performance | ✅ Fast | ⚠️ Slower  | ✅ Fast     |
+| Complexity  | ✅ Low  | ⚠️ Medium  | ❌ High     |
+| Ecosystem   | ✅ Rich | ⚠️ Limited | ⚠️ Limited  |
 
-**Decision:** Docker with hardening (acceptable security for code playground)
+**Decision:** Docker with hardening (acceptable security for code playground and mughe sirf docker ata h thoda bht)
 
 ### 8.3 Single Server vs Microservices
 
-| Factor | Monolith | Microservices |
-|--------|----------|---------------|
-| Complexity | ✅ Simple | ❌ Complex |
-| Latency | ✅ Low | ⚠️ Network hops |
-| Deployment | ✅ Easy | ❌ Kubernetes |
-| Scale | ⚠️ Limited | ✅ Independent |
+| Factor     | Monolith   | Microservices   |
+|------------|------------|-----------------|
+| Complexity | ✅ Simple  | ❌ Complex      |
+| Latency    | ✅ Low     | ⚠️ Network hops |
+| Deployment | ✅ Easy    | ❌ Kubernetes   |
+| Scale      | ⚠️ Limited | ✅ Independent  |
 
 **Decision:** Monolith (appropriate for current scale)
 
@@ -436,20 +446,20 @@ Bottleneck: Docker container spawning
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     METRICS DASHBOARD                        │
+│                     METRICS DASHBOARD                       │
 ├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  Execution Latency (p99)          Active WebSockets          │
+│                                                             │
+│  Execution Latency (p99)          Active WebSockets         │
 │  ┌────────────────────┐           ┌────────────────────┐    │
 │  │████████░░░░ 450ms  │           │  Currently: 23     │    │
 │  └────────────────────┘           └────────────────────┘    │
-│                                                              │
-│  Success Rate                     Container Count            │
+│                                                             │
+│  Success Rate                     Container Count           │
 │  ┌────────────────────┐           ┌────────────────────┐    │
 │  │██████████░░ 98.5%  │           │  Running: 8        │    │
 │  └────────────────────┘           └────────────────────┘    │
-│                                                              │
-│  Executions by Language (24h)                                │
+│                                                             │
+│  Executions by Language (24h)                               │
 │  ┌─────────────────────────────────────────────────────┐    │
 │  │ Python     ████████████████████████  (45%)          │    │
 │  │ JavaScript ████████████████  (32%)                  │    │
@@ -457,7 +467,7 @@ Bottleneck: Docker container spawning
 │  │ C++        ███  (5%)                                │    │
 │  │ Java       ██  (3%)                                 │    │
 │  └─────────────────────────────────────────────────────┘    │
-│                                                              │
+│                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -529,29 +539,29 @@ Bottleneck: Docker container spawning
 
 ## 11. Future Improvements
 
-| Priority | Feature | Complexity |
-|----------|---------|------------|
-| High | Container pooling | Medium |
-| High | Collaborative editing | High |
-| Medium | Code autocomplete (LSP) | High |
-| Medium | File sharing via URL | Low |
-| Low | Vim/Emacs keybindings | Low |
-| Low | Custom themes | Low |
+| Priority | Feature                 | Complexity |
+|----------|-------------------------|------------|
+| High     | Container pooling       | Medium     |
+| High     | Collaborative editing   | High       |
+| Medium   | Code autocomplete (LSP) | High       |
+| Medium   | File sharing via URL    | Low        |
+| Low      | Vim/Emacs keybindings   | Low        |
+| Low      | Custom themes           | Low        |
 
 ---
 
 ## 12. Tech Stack Summary
 
-| Layer | Technology | Purpose |
-|-------|------------|---------|
-| Frontend | React 18 + TypeScript | UI framework |
-| Editor | CodeMirror 6 | Code editing |
-| Terminal | xterm.js | Terminal emulation |
-| Build | Vite | Fast bundling |
-| Backend | Go 1.22 | HTTP/WebSocket server |
-| Execution | Docker | Sandboxed code running |
-| Tunnel | Cloudflare Tunnel | Public access |
-| Hosting | Any VPS / Cloudflare | Production deployment |
+| Layer     | Technology            | Purpose                |
+|-----------|-----------------------|------------------------|
+| Frontend  | React 18 + TypeScript | UI framework           |
+| Editor    | CodeMirror 6          | Code editing           |
+| Terminal  | xterm.js              | Terminal emulation     |
+| Build     | Vite                  | Fast bundling          |
+| Backend   | Go 1.22               | HTTP/WebSocket server  |
+| Execution | Docker                | Sandboxed code running |
+| Tunnel    | Cloudflare Tunnel     | Public access          |
+| Hosting   | Any VPS / Cloudflare  | Production deployment  |
 
 ---
 
