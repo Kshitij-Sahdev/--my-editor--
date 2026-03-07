@@ -48,16 +48,10 @@ COPY --from=backend-builder /code-runner .
 # Copy built frontend into the expected relative path
 COPY --from=frontend-builder /frontend/dist ./frontend/dist
 
-# Non-root user for defense-in-depth.
-# The user needs access to /var/run/docker.sock (mounted at runtime).
-# On most hosts the socket is group-owned by GID 999 or 998 (docker group).
-# We create a docker group with a common GID and add the runner user to it.
-# GID 999 may already be taken in the base image, so fall back gracefully.
-RUN (addgroup -g 999 -S docker || addgroup -S docker) && \
-    addgroup -S runner && \
-    adduser -S runner -G runner && \
-    addgroup runner docker
-USER runner
+# Run as root so we can talk to the Docker socket.
+# The socket is bind-mounted from the host and is typically owned by root:docker.
+# Running as non-root requires matching the host's docker GID, which varies.
+# Security is enforced at the container level (runner containers are sandboxed).
 
 EXPOSE 8080
 

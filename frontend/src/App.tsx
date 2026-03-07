@@ -271,8 +271,8 @@ export default function App() {
   /** Whether the sidebar is being hovered */
   const [sidebarHovered, setSidebarHovered] = useState(false);
 
-  /** Whether the output panel is pinned open */
-  const [outputPinned, setOutputPinned] = useState(false);
+  /** Whether the output panel is pinned open (default: true so terminal shows on load) */
+  const [outputPinned, setOutputPinned] = useState(true);
 
   /** Whether the output panel is being hovered */
   const [outputHovered, setOutputHovered] = useState(false);
@@ -866,13 +866,13 @@ export default function App() {
         onToggleSidebar={handleToggleSidebar}
         outputVisible={outputVisible}
         onToggleOutput={handleToggleOutput}
-        hasOutput={!!output}
+        hasOutput={true}
       />
 
       {/* Main content area */}
       <div style={styles.mainContent}>
-        {/* Output hover trigger zone - on BOTTOM edge when output exists (desktop only) */}
-        {output && !outputVisible && !isMobile && (
+        {/* Output hover trigger zone - on BOTTOM edge (desktop only) */}
+        {!outputVisible && !isMobile && (
           <div 
             className="hover-trigger-zone"
             style={styles.outputTrigger}
@@ -883,7 +883,6 @@ export default function App() {
         )}
 
         {/* Output panel - BOTTOM on both desktop and mobile */}
-        {output && (
           <div 
             className={`output-container ${isMobile ? 'mobile' : ''}`}
             style={{
@@ -947,7 +946,6 @@ export default function App() {
               />
             </div>
           </div>
-        )}
 
         {/* Editor area - takes full space, shifts when panels are visible */}
         <div 

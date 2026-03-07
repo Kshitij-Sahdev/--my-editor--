@@ -165,6 +165,11 @@ export function XTerminal({ isVisible, onClose }: TerminalProps) {
 
     return () => {
       resizeObserver.disconnect();
+      // Close any open WebSocket connection
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
       terminal.dispose();
       terminalRef.current = null;
     };

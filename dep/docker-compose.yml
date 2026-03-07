@@ -90,6 +90,51 @@ services:
       # Coolify managed label (do not remove)
       coolify.managed: "true"
 
+  # ---------------------------------------------------------------------------
+  # Language runner images (built once by Coolify, used by the app at runtime)
+  # These are build-only — they don't run as services.
+  # The Go server spawns them via `docker run` when executing user code.
+  # ---------------------------------------------------------------------------
+  runner-python:
+    build:
+      context: dep
+      dockerfile: Dockerfile.python
+    image: runner-python:latest
+    profiles: ["build-runners"]
+    command: ["true"]
+
+  runner-js:
+    build:
+      context: dep
+      dockerfile: Dockerfile.javascript
+    image: runner-js:latest
+    profiles: ["build-runners"]
+    command: ["true"]
+
+  runner-go:
+    build:
+      context: dep
+      dockerfile: Dockerfile.go
+    image: runner-go:latest
+    profiles: ["build-runners"]
+    command: ["true"]
+
+  runner-cpp:
+    build:
+      context: dep
+      dockerfile: Dockerfile.cpp
+    image: runner-cpp:latest
+    profiles: ["build-runners"]
+    command: ["true"]
+
+  runner-java:
+    build:
+      context: dep
+      dockerfile: Dockerfile.java
+    image: runner-java:latest
+    profiles: ["build-runners"]
+    command: ["true"]
+
 # =============================================================================
 # Networks
 # =============================================================================

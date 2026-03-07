@@ -102,6 +102,7 @@ const styles = {
   } as React.CSSProperties,
   tabInactive: {
     color: 'var(--color-text-muted)',
+    backgroundColor: 'transparent',
   } as React.CSSProperties,
   tabIndicator: {
     position: 'absolute',
