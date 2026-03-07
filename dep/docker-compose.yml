@@ -105,43 +105,30 @@ services:
 
   runner-js:
     build:
-      context: dep
-      dockerfile: Dockerfile.javascript
-    image: runner-js:latest
-    profiles: ["build-runners"]
-    command: ["true"]
+    # Tell Coolify the public FQDN so it can create Traefik routes automatically
+    SERVICE_FQDN_APP: "${SERVICE_FQDN_APP:-run.kshitijsahdev.lol}"
 
-  runner-go:
-    build:
-      context: dep
-      dockerfile: Dockerfile.go
-    image: runner-go:latest
-    profiles: ["build-runners"]
-    command: ["true"]
+    ports:
+      - "8080"
 
-  runner-cpp:
-    build:
-      context: dep
-      dockerfile: Dockerfile.cpp
-    image: runner-cpp:latest
-    profiles: ["build-runners"]
-    command: ["true"]
+    volumes:
+      # Mount the Docker socket so the Go server can spawn runner containers.
+      # This is intentional — the server IS the container orchestrator.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
 
-  runner-java:
-    build:
-      context: dep
-      dockerfile: Dockerfile.java
+    networks:
+      - coolify                 # Coolify's shared Traefik network
+      - internal                # Private network (no external exposure)
+
+    # Healthcheck — Coolify uses this to gate traffic
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+    labels:
+      # Minimal managed label — Coolify will synthesize Traefik rules
+      coolify.managed: "true"
     image: runner-java:latest
-    profiles: ["build-runners"]
-    command: ["true"]
-
-# =============================================================================
-# Networks
-# =============================================================================
-networks:
-  coolify:
-    external: true        # Coolify creates and owns this network
-
-  internal:
-    driver: bridge
-    internal: false       # needs outbound for Docker socket calls
