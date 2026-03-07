@@ -37,8 +37,8 @@ services:
     restart: unless-stopped
 
     environment:
-      # Coolify injects SERVICE_FQDN_APP automatically for Traefik routing
-      SERVICE_FQDN_APP: "${SERVICE_FQDN_APP:-run.kshitijsahdev.lol}"
+      # Coolify reads these to generate Traefik routing labels automatically
+      SERVICE_FQDN_APP: "https://run.kshitijsahdev.lol"
       PORT: "8080"
       MAX_CONCURRENT: "${MAX_CONCURRENT:-3}"
       TIMEOUT_BATCH: "${TIMEOUT_BATCH:-10}"
