@@ -44,6 +44,10 @@ services:
     volumes:
       # Mount the Docker socket so the Go server can spawn runner containers.
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Shared temp directory — the app writes code files here, and runner
+      # containers mount the same host path. Without this, the app's /tmp
+      # is inside its own container filesystem, invisible to the host Docker.
+      - /tmp/code-runner:/tmp/code-runner
 
     networks:
       - coolify

@@ -203,8 +203,10 @@ func runHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func executeDocker(code, stdin string, lang LangConfig) RunResponse {
-	// Create temp dir
-	tmp, err := os.MkdirTemp("", "run-")
+	// Create temp dir under /tmp/code-runner so the path is valid on both
+	// the host and inside this container (bind-mounted in docker-compose).
+	os.MkdirAll("/tmp/code-runner", 0777)
+	tmp, err := os.MkdirTemp("/tmp/code-runner", "run-")
 	if err != nil {
 		return RunResponse{Stderr: err.Error()}
 	}
@@ -368,8 +370,10 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("RUNNING: %s\n", initMsg.Language)
 	fmt.Println("----------------------------------------")
 
-	// Create temp dir
-	tmp, err := os.MkdirTemp("", "ws-run-")
+	// Create temp dir under /tmp/code-runner so the path is valid on both
+	// the host and inside this container (bind-mounted in docker-compose).
+	os.MkdirAll("/tmp/code-runner", 0777)
+	tmp, err := os.MkdirTemp("/tmp/code-runner", "ws-run-")
 	if err != nil {
 		conn.WriteJSON(WSResponse{Type: "error", Data: err.Error()})
 		return
