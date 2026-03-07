@@ -47,6 +47,8 @@ interface FileTreeProps {
   onDeleteItem: (id: string) => void;
   /** Callback to toggle folder expansion */
   onToggleFolder: (id: string) => void;
+  /** Current file count (for limit display) */
+  fileCount?: number;
 }
 
 interface TreeItemProps extends Omit<FileTreeProps, "files"> {
@@ -422,6 +424,7 @@ export default function FileTree({
   onCreateFolder,
   onDeleteItem,
   onToggleFolder,
+  fileCount = 0,
 }: FileTreeProps) {
   /** Whether we're creating a new item at the root level */
   const [isCreating, setIsCreating] = useState<"file" | "folder" | null>(null);
@@ -459,6 +462,15 @@ export default function FileTree({
       <div style={styles.header}>
         <span style={styles.headerTitle}>
           Explorer
+          <span style={{
+            marginLeft: '8px',
+            fontSize: '10px',
+            fontWeight: 400,
+            color: fileCount >= 50 ? 'var(--color-error)' : 'var(--color-text-muted)',
+            fontFamily: 'var(--font-mono)',
+          }}>
+            {fileCount}/50
+          </span>
         </span>
         <div style={styles.headerButtons}>
           {/* New file button */}

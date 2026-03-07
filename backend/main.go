@@ -639,7 +639,12 @@ func main() {
 	}
 
 	// Check if frontend dist exists
-	distPath := "../frontend/dist"
+	// In Docker the layout is /app/code-runner + /app/frontend/dist
+	// In dev   the layout is backend/main.go  + frontend/dist  (one level up)
+	distPath := "./frontend/dist"
+	if _, err := os.Stat(distPath); err != nil {
+		distPath = "../frontend/dist" // fallback for local dev
+	}
 	serveFrontend := false
 	if _, err := os.Stat(distPath); err == nil {
 		serveFrontend = true
@@ -647,7 +652,7 @@ func main() {
 
 	frontendStatus := "NOT SERVING (use Vite dev server)"
 	if serveFrontend {
-		frontendStatus = "SERVING from ../frontend/dist"
+		frontendStatus = fmt.Sprintf("SERVING from %s", distPath)
 	}
 
 	fmt.Printf(`

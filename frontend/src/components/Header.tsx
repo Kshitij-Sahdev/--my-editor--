@@ -14,6 +14,7 @@
 import { Play, Terminal, FolderOpen, TerminalSquare } from "lucide-react";
 import type { FileItem } from "../types";
 import { RUNNABLE_LANGUAGES } from "../types";
+import AuthButton from "./AuthButton";
 
 // =============================================================================
 // TYPES
@@ -191,7 +192,7 @@ export default function Header({
         </div>
       </div>
 
-      {/* Right side: Mobile controls + Run button */}
+      {/* Right side: Mobile controls + Auth + Run button */}
       <div style={styles.rightControls}>
         {/* Mobile toggle buttons - only visible on mobile/portrait */}
         {isMobile && (
@@ -237,6 +238,9 @@ export default function Header({
             <span>Offline</span>
           </div>
         )}
+
+        {/* Auth button */}
+        <AuthButton />
 
         {/* Run button */}
         <button

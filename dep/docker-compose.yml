@@ -1,0 +1,102 @@
+version: "3.9"
+
+# =============================================================================
+# Code Runner — Coolify Deployment  →  run.kshitijsahdev.lol
+#
+# HOW TO DEPLOY ON COOLIFY:
+#   1. Create a new "Docker Compose" service in Coolify
+#   2. Point it at your repo (or paste this file)
+#   3. Set the required environment variables in the Coolify UI:
+#        VITE_CLERK_PUBLISHABLE_KEY  — from Clerk dashboard
+#   4. Run `./dep/build-runners.sh` on your server ONCE before first deploy
+#      (runner images must exist on the Docker host Coolify uses)
+#   5. Hit Deploy — Coolify + Traefik handle SSL automatically
+#
+# DOMAIN:
+#   run.kshitijsahdev.lol  (hardcoded below, also in SERVICE_FQDN_APP)
+#
+# REQUIRED ENV VARS (set in Coolify → Environment):
+#   SERVICE_FQDN_APP                  — auto-set by Coolify (override below)
+#   VITE_CLERK_PUBLISHABLE_KEY        — Clerk publishable key for auth
+#
+# OPTIONAL ENV VARS:
+#   MAX_CONCURRENT     — max simultaneous executions per IP (default: 3)
+#   TIMEOUT_BATCH      — batch execution timeout in seconds (default: 10)
+# =============================================================================
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # Main application: Go API server + React SPA
+  # ---------------------------------------------------------------------------
+  app:
+    build:
+      context: ..
+      dockerfile: dep/Dockerfile
+      args:
+        - VITE_CLERK_PUBLISHABLE_KEY=${VITE_CLERK_PUBLISHABLE_KEY:-}
+    image: code-runner-app:latest
+
+    restart: unless-stopped
+
+    environment:
+      PORT: "8080"
+      MAX_CONCURRENT: "${MAX_CONCURRENT:-3}"
+      TIMEOUT_BATCH: "${TIMEOUT_BATCH:-10}"
+
+    volumes:
+      # Mount the Docker socket so the Go server can spawn runner containers.
+      # This is intentional — the server IS the container orchestrator.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+    networks:
+      - coolify                 # Coolify's shared Traefik network
+      - internal                # Private network (no external exposure)
+
+    # Healthcheck — Coolify uses this to gate traffic
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+    labels:
+      # -----------------------------------------------------------------------
+      # Traefik routing labels for run.kshitijsahdev.lol
+      # -----------------------------------------------------------------------
+      traefik.enable: "true"
+
+      # HTTP router — redirect to HTTPS
+      traefik.http.routers.code-runner-http.rule: "Host(`run.kshitijsahdev.lol`)"
+      traefik.http.routers.code-runner-http.entrypoints: "http"
+      traefik.http.routers.code-runner-http.middlewares: "redirect-to-https"
+
+      # HTTPS router
+      traefik.http.routers.code-runner.rule: "Host(`run.kshitijsahdev.lol`)"
+      traefik.http.routers.code-runner.entrypoints: "https"
+      traefik.http.routers.code-runner.tls: "true"
+      traefik.http.routers.code-runner.tls.certresolver: "letsencrypt"
+
+      # Service port (what Traefik forwards to)
+      traefik.http.services.code-runner.loadbalancer.server.port: "8080"
+
+      # WebSocket support — increased timeouts for long-lived WS connections
+      traefik.http.middlewares.code-runner-headers.headers.customrequestheaders.X-Forwarded-Proto: "https"
+      traefik.http.middlewares.code-runner-buffering.buffering.maxRequestBodyBytes: "0"
+      traefik.http.middlewares.code-runner-buffering.buffering.memRequestBodyBytes: "0"
+      traefik.http.routers.code-runner.middlewares: "code-runner-headers"
+
+      # Coolify managed label (do not remove)
+      coolify.managed: "true"
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  coolify:
+    external: true        # Coolify creates and owns this network
+
+  internal:
+    driver: bridge
+    internal: false       # needs outbound for Docker socket calls

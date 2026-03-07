@@ -469,3 +469,92 @@ export const LANGUAGE_LABELS: Record<Language, string> = {
   markdown: "Markdown",
   text: "Plain Text",
 };
+
+// =============================================================================
+// FILE LIMITS
+// =============================================================================
+
+/** Maximum number of files a user can create (excluding settings.conf) */
+export const MAX_FILE_COUNT = 50;
+
+// =============================================================================
+// CODING CHALLENGE TYPES
+// =============================================================================
+
+/**
+ * A single test case for a coding challenge.
+ */
+export interface TestCase {
+  id: string;
+  input: string;
+  expectedOutput: string;
+  isCustom?: boolean;
+}
+
+/**
+ * Result of running a single test case.
+ */
+export interface TestCaseResult {
+  testCaseId: string;
+  passed: boolean;
+  actualOutput: string;
+  expectedOutput: string;
+  input: string;
+  error?: string;
+}
+
+/**
+ * A coding challenge/problem.
+ */
+export interface CodingChallenge {
+  id: string;
+  title: string;
+  difficulty: "Easy" | "Medium" | "Hard";
+  description: string;
+  examples: { input: string; output: string; explanation?: string }[];
+  testCases: TestCase[];
+  starterCode: Record<Language, string>;
+  constraints: string[];
+}
+
+/**
+ * Status of a challenge attempt.
+ */
+export interface ChallengeAttempt {
+  challengeId: string;
+  status: "not-started" | "in-progress" | "passed" | "failed";
+  passedTests: number;
+  totalTests: number;
+}
+
+// =============================================================================
+// GITHUB INTEGRATION TYPES
+// =============================================================================
+
+/**
+ * GitHub repository info (minimal).
+ */
+export interface GitHubRepo {
+  id: number;
+  name: string;
+  full_name: string;
+  private: boolean;
+  default_branch: string;
+  html_url: string;
+}
+
+/**
+ * Rate limit info for GitHub API display.
+ */
+export interface GitHubRateLimit {
+  remaining: number;
+  limit: number;
+  reset: number;
+}
+
+// =============================================================================
+// CODING CHALLENGES DATA
+// =============================================================================
+
+// Challenges are defined in challenges.ts to avoid template literal issues
+export { CODING_CHALLENGES } from "./challenges";

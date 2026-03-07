@@ -1,19 +1,16 @@
-FROM golang:1.22-alpine
+FROM golang:1.22-alpine3.19
 
-# Create runner user first
-RUN adduser -D runner
+RUN apk add --no-cache bash && \
+    addgroup -S runner && adduser -S runner -G runner
 
-# Set up build cache location that persists in image (in /opt which won't be overwritten)
-ENV GOCACHE=/opt/go-cache
-ENV GOPATH=/opt/go
-ENV CGO_ENABLED=0
+ENV GOCACHE=/tmp/go-cache \
+    GOMODCACHE=/tmp/go-mod \
+    CGO_ENABLED=0
 
-# Pre-compile Go standard library to populate cache
-RUN mkdir -p /opt/go-cache /opt/go && chown -R runner:runner /opt/go-cache /opt/go
+RUN mkdir -p /tmp/go-cache /tmp/go-mod && \
+    chown -R runner:runner /tmp/go-cache /tmp/go-mod
+
 USER runner
-RUN go build -a std
-
 WORKDIR /app
 
-# Build to tmpfs, run from there
-CMD ["sh", "-c", "go build -o /tmp/prog main.go && /tmp/prog"]
+CMD ["bash", "-c", "go build -o /tmp/prog main.go && /tmp/prog"]

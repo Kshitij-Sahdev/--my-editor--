@@ -26,7 +26,7 @@ import Resizer from "./components/Resizer";
 import { useIsMobile } from "./hooks/useIsMobile";
 import { useNetworkStatus } from "./hooks/network";
 import { executeCode } from "./hooks/execute";
-import type { AppState, FileItem, Commit, Language, RunOutput, EditorSettings } from "./types";
+import type { AppState, FileItem, Commit, Language, RunOutput, EditorSettings, CodingChallenge } from "./types";
 import {
   loadState,
   saveState,
@@ -37,7 +37,7 @@ import {
   saveLastExecution,
   loadLastExecution,
 } from "./storage";
-import { THEME_CSS_VARS, AVAILABLE_FONTS } from "./types";
+import { THEME_CSS_VARS, AVAILABLE_FONTS, MAX_FILE_COUNT } from "./types";
 
 // =============================================================================
 // LAYOUT CONSTRAINTS
@@ -385,6 +385,14 @@ export default function App() {
    */
   const hasChanges = activeFile && editorContent !== savedContent;
 
+  /**
+   * Count of files (excluding settings.conf and folders).
+   * Used for the 50-file limit enforcement.
+   */
+  const fileCount = state?.files.filter(
+    (f) => f.type === "file" && f.name !== "settings.conf"
+  ).length || 0;
+
   // ---------------------------------------------------------------------------
   // FILE OPERATIONS
   // ---------------------------------------------------------------------------
@@ -417,25 +425,32 @@ export default function App() {
   /**
    * Create a new file with the given name and language.
    * The file is created with default template code and auto-selected.
+   * Enforces the 50-file limit (excluding settings.conf).
    */
   const handleCreateFile = useCallback(
     (name: string, language: Language, parentId: string | null) => {
-      const newFile = createFile(name, language, parentId);
-
+      // Enforce 50-file limit
       setState((prev) => {
         if (!prev) return prev;
+        const currentFileCount = prev.files.filter(
+          (f) => f.type === "file" && f.name !== "settings.conf"
+        ).length;
+        if (currentFileCount >= MAX_FILE_COUNT) {
+          alert(`File limit reached (${MAX_FILE_COUNT} files max). Delete some files to create new ones.`);
+          return prev;
+        }
+
+        const newFile = createFile(name, language, parentId);
+        currentContentRef.current = newFile.content;
+        setEditorContent(newFile.content);
+        setSavedContent(newFile.content);
+
         return {
           ...prev,
           files: [...prev.files, newFile],
           activeFileId: newFile.id,
         };
       });
-
-      // Set content ref to the new file's default code
-      currentContentRef.current = newFile.content;
-      setEditorContent(newFile.content);
-      // New file has no commits, so saved content is the original content
-      setSavedContent(newFile.content);
     },
     []
   );
@@ -701,6 +716,120 @@ export default function App() {
   }, []);
 
   // ---------------------------------------------------------------------------
+  // GITHUB PULL FILE HANDLER
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Handle pulling a file from GitHub.
+   * Creates a new file with the pulled content.
+   */
+  const handlePullFile = useCallback(
+    (name: string, content: string, language: Language) => {
+      setState((prev) => {
+        if (!prev) return prev;
+        const currentFileCount = prev.files.filter(
+          (f) => f.type === "file" && f.name !== "settings.conf"
+        ).length;
+        if (currentFileCount >= MAX_FILE_COUNT) {
+          alert(`File limit reached (${MAX_FILE_COUNT} files max). Delete some files first.`);
+          return prev;
+        }
+
+        // Check if file with same name already exists at root, add suffix
+        let finalName = name;
+        const existingNames = prev.files
+          .filter((f) => f.parentId === null)
+          .map((f) => f.name);
+        let counter = 1;
+        while (existingNames.includes(finalName)) {
+          const dotIdx = name.lastIndexOf(".");
+          if (dotIdx > 0) {
+            finalName = `${name.slice(0, dotIdx)}_${counter}${name.slice(dotIdx)}`;
+          } else {
+            finalName = `${name}_${counter}`;
+          }
+          counter++;
+        }
+
+        const newFile = createFile(finalName, language, null);
+        // Override with pulled content
+        const fileWithContent = { ...newFile, content };
+
+        currentContentRef.current = content;
+        setEditorContent(content);
+        setSavedContent(content);
+
+        return {
+          ...prev,
+          files: [...prev.files, fileWithContent],
+          activeFileId: fileWithContent.id,
+        };
+      });
+    },
+    []
+  );
+
+  // ---------------------------------------------------------------------------
+  // CHALLENGE LOADING HANDLER
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Load a coding challenge into the editor.
+   * Creates a new file with the challenge starter code.
+   */
+  const handleLoadChallenge = useCallback(
+    (challenge: CodingChallenge, language: Language) => {
+      const ext: Record<string, string> = {
+        python: ".py", javascript: ".js", cpp: ".cpp",
+        java: ".java", go: ".go",
+      };
+      const fileName = `challenge_${challenge.id}${ext[language] || ".txt"}`;
+      const starterCode = challenge.starterCode[language] || "";
+
+      setState((prev) => {
+        if (!prev) return prev;
+
+        // Check if challenge file already exists
+        const existing = prev.files.find(
+          (f) => f.type === "file" && f.name === fileName
+        ) as FileItem | undefined;
+
+        if (existing) {
+          // Just switch to it
+          currentContentRef.current = existing.content;
+          setEditorContent(existing.content);
+          const fileCommits = getFileCommits(prev.commits, existing.id);
+          setSavedContent(fileCommits.length > 0 ? fileCommits[0].content : existing.content);
+          return { ...prev, activeFileId: existing.id };
+        }
+
+        // Enforce file limit
+        const currentFileCount = prev.files.filter(
+          (f) => f.type === "file" && f.name !== "settings.conf"
+        ).length;
+        if (currentFileCount >= MAX_FILE_COUNT) {
+          alert(`File limit reached (${MAX_FILE_COUNT} files max). Delete some files first.`);
+          return prev;
+        }
+
+        const newFile = createFile(fileName, language, null);
+        const fileWithCode = { ...newFile, content: starterCode };
+
+        currentContentRef.current = starterCode;
+        setEditorContent(starterCode);
+        setSavedContent(starterCode);
+
+        return {
+          ...prev,
+          files: [...prev.files, fileWithCode],
+          activeFileId: fileWithCode.id,
+        };
+      });
+    },
+    []
+  );
+
+  // ---------------------------------------------------------------------------
   // LOADING STATE
   // ---------------------------------------------------------------------------
 
@@ -941,6 +1070,10 @@ export default function App() {
               onToggleFolder={handleToggleFolder}
               onCommit={handleCommit}
               onRestore={handleRestore}
+              fileCount={fileCount}
+              onPullFile={handlePullFile}
+              onLoadChallenge={handleLoadChallenge}
+              editorContent={editorContent}
             />
           </div>
         </div>

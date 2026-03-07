@@ -1,9 +1,11 @@
 /**
- * Sidebar.tsx - Left sidebar with file explorer and version control tabs
+ * Sidebar.tsx - Left sidebar with file explorer, version control, github, and challenges tabs
  *
- * Contains two tabs:
+ * Contains four tabs:
  * 1. Files - File tree for browsing/creating/deleting files and folders
  * 2. Git - Version history with commit/restore functionality
+ * 3. GitHub - Push/pull files to/from GitHub repos
+ * 4. Challenges - Coding challenges with test case execution
  *
  * The active tab is stored in local component state.
  */
@@ -11,10 +13,12 @@
 "use client";
 
 import { useState } from "react";
-import { FolderTree, GitBranch } from "lucide-react";
+import { FolderTree, GitBranch, Github, Trophy } from "lucide-react";
 import FileTree from "./FileTree";
 import History from "./History";
-import type { FileSystemItem, FileItem, Commit, Language } from "../types";
+import GitHubPanel from "./GitHubPanel";
+import ChallengesPanel from "./ChallengesPanel";
+import type { FileSystemItem, FileItem, Commit, Language, CodingChallenge } from "../types";
 
 // =============================================================================
 // TYPES
@@ -47,10 +51,18 @@ interface SidebarProps {
   onCommit: (message: string) => void;
   /** Callback to restore a previous commit */
   onRestore: (commit: Commit) => void;
+  /** Total file count for limit display */
+  fileCount: number;
+  /** Callback from GitHub pull to create a file */
+  onPullFile: (name: string, content: string, language: Language) => void;
+  /** Callback to load a coding challenge */
+  onLoadChallenge: (challenge: CodingChallenge, language: Language) => void;
+  /** Editor content for test execution / github push */
+  editorContent: string;
 }
 
 /** Available sidebar tabs */
-type Tab = "files" | "history";
+type Tab = "files" | "history" | "github" | "challenges";
 
 // =============================================================================
 // STYLES
@@ -123,6 +135,10 @@ export default function Sidebar({
   onToggleFolder,
   onCommit,
   onRestore,
+  fileCount,
+  onPullFile,
+  onLoadChallenge,
+  editorContent,
 }: SidebarProps) {
   /** Currently active tab */
   const [activeTab, setActiveTab] = useState<Tab>("files");
@@ -138,6 +154,7 @@ export default function Sidebar({
             ...styles.tab,
             ...(activeTab === "files" ? styles.tabActive : styles.tabInactive),
           }}
+          title="Files"
         >
           <FolderTree size={14} />
           Files
@@ -154,11 +171,44 @@ export default function Sidebar({
             ...styles.tab,
             ...(activeTab === "history" ? styles.tabActive : styles.tabInactive),
           }}
+          title="Git"
         >
           <GitBranch size={14} />
           Git
           {/* Active indicator */}
           {activeTab === "history" && (
+            <span style={styles.tabIndicator} />
+          )}
+        </button>
+
+        {/* GitHub tab */}
+        <button
+          onClick={() => setActiveTab("github")}
+          style={{
+            ...styles.tab,
+            ...(activeTab === "github" ? styles.tabActive : styles.tabInactive),
+          }}
+          title="GitHub"
+        >
+          <Github size={14} />
+          {/* Active indicator */}
+          {activeTab === "github" && (
+            <span style={styles.tabIndicator} />
+          )}
+        </button>
+
+        {/* Challenges tab */}
+        <button
+          onClick={() => setActiveTab("challenges")}
+          style={{
+            ...styles.tab,
+            ...(activeTab === "challenges" ? styles.tabActive : styles.tabInactive),
+          }}
+          title="Challenges"
+        >
+          <Trophy size={14} />
+          {/* Active indicator */}
+          {activeTab === "challenges" && (
             <span style={styles.tabIndicator} />
           )}
         </button>
@@ -176,8 +226,9 @@ export default function Sidebar({
             onCreateFolder={onCreateFolder}
             onDeleteItem={onDeleteItem}
             onToggleFolder={onToggleFolder}
+            fileCount={fileCount}
           />
-        ) : (
+        ) : activeTab === "history" ? (
           <History
             commits={commits}
             activeFile={activeFile}
@@ -185,6 +236,19 @@ export default function Sidebar({
             savedContent={savedContent}
             onCommit={onCommit}
             onRestore={onRestore}
+          />
+        ) : activeTab === "github" ? (
+          <GitHubPanel
+            activeFile={activeFile}
+            editorContent={editorContent}
+            onPullFile={onPullFile}
+          />
+        ) : (
+          <ChallengesPanel
+            activeLanguage={activeFile?.language || null}
+            onLoadChallenge={onLoadChallenge}
+            editorContent={editorContent}
+            currentLanguage={activeFile?.language || null}
           />
         )}
       </div>
