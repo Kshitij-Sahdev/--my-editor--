@@ -146,53 +146,93 @@ body {
    RESIZABLE PANEL HANDLES
    ============================================================================= */
 
+@keyframes pulse-arrows {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+
 .resizer {
   background: transparent;
   transition: background 0.2s ease;
   position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
+/* Pulsing drag arrows — appear on hover */
+.resizer::before,
 .resizer::after {
-  content: "";
   position: absolute;
-  background: var(--color-accent);
+  font-size: 9px;
+  color: var(--color-accent);
   opacity: 0;
-  transition: opacity 0.2s ease;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+  line-height: 1;
+  font-family: system-ui, sans-serif;
 }
 
+.resizer:hover::before,
 .resizer:hover::after,
+.resizer:active::before,
+.resizer:active::after {
+  opacity: 0.6;
+  animation: pulse-arrows 1.4s ease-in-out infinite;
+}
+
+.resizer:active::before,
 .resizer:active::after {
   opacity: 1;
+  animation: none;
 }
 
+/* ── Horizontal (sidebar ↔ editor) ── */
 .resizer-x {
   cursor: col-resize;
-  width: 6px;
+  width: 8px;
   height: 100%;
   top: 0;
   right: 0;
+  flex-direction: column;
+}
+
+.resizer-x::before {
+  content: "◂";
+  left: -1px;
+  top: 50%;
+  transform: translateY(calc(-50% - 6px));
 }
 
 .resizer-x::after {
-  top: 0;
-  bottom: 0;
-  left: 2px;
-  width: 2px;
+  content: "▸";
+  right: -1px;
+  top: 50%;
+  transform: translateY(calc(-50% + 6px));
 }
 
+/* ── Vertical (editor ↔ terminal) ── */
 .resizer-y {
   cursor: row-resize;
-  height: 6px;
+  height: 8px;
   width: 100%;
   top: 0;
   left: 0;
+  flex-direction: row;
+}
+
+.resizer-y::before {
+  content: "▴";
+  top: -2px;
+  left: 50%;
+  transform: translateX(calc(-50% - 7px));
 }
 
 .resizer-y::after {
-  left: 0;
-  right: 0;
-  top: 2px;
-  height: 2px;
+  content: "▾";
+  bottom: -2px;
+  left: 50%;
+  transform: translateX(calc(-50% + 7px));
 }
 
 /* =============================================================================

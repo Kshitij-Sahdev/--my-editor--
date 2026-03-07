@@ -67,19 +67,16 @@ services:
       traefik.enable: "true"
       # Service definition — container port
       traefik.http.services.code-runner-svc.loadbalancer.server.port: "8080"
-      # HTTPS router
+      # HTTP router — serves traffic from Cloudflare (which terminates TLS)
+      traefik.http.routers.code-runner-http.rule: "Host(`run.kshitijsahdev.lol`)"
+      traefik.http.routers.code-runner-http.entryPoints: "http"
+      traefik.http.routers.code-runner-http.service: "code-runner-svc"
+      # HTTPS router — for direct access and Cloudflare Full SSL mode
       traefik.http.routers.code-runner-https.rule: "Host(`run.kshitijsahdev.lol`)"
       traefik.http.routers.code-runner-https.entryPoints: "https"
       traefik.http.routers.code-runner-https.service: "code-runner-svc"
       traefik.http.routers.code-runner-https.tls: "true"
       traefik.http.routers.code-runner-https.tls.certresolver: "letsencrypt"
-      # HTTP router — redirect to HTTPS
-      traefik.http.routers.code-runner-http.rule: "Host(`run.kshitijsahdev.lol`)"
-      traefik.http.routers.code-runner-http.entryPoints: "http"
-      traefik.http.routers.code-runner-http.service: "code-runner-svc"
-      traefik.http.routers.code-runner-http.middlewares: "redirect-to-https"
-      # Redirect middleware
-      traefik.http.middlewares.redirect-to-https.redirectscheme.scheme: "https"
 
   # ---------------------------------------------------------------------------
   # Language runner images (built once, used by the app at runtime)
