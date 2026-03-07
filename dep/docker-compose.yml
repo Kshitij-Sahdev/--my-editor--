@@ -37,14 +37,11 @@ services:
     restart: unless-stopped
 
     environment:
-      # Coolify reads these to generate Traefik routing labels automatically
-      SERVICE_FQDN_APP: "https://run.kshitijsahdev.lol"
+      # Coolify: route https://run.kshitijsahdev.lol → container port 8080
+      SERVICE_FQDN_APP_8080: "https://run.kshitijsahdev.lol"
       PORT: "8080"
       MAX_CONCURRENT: "${MAX_CONCURRENT:-3}"
       TIMEOUT_BATCH: "${TIMEOUT_BATCH:-10}"
-
-    ports:
-      - "8080"
 
     volumes:
       # Mount the Docker socket so the Go server can spawn runner containers.
