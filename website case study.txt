@@ -67,16 +67,15 @@ Language-specific Docker container (runner-python, runner-cpp, etc.)
 
 **Interactive mode** (\`WS /api/ws\`): Frontend opens a WebSocket. Sends an \`init\` message with language and code. Backend spawns the container and pipes stdin/stdout/stderr over the socket in real-time. The user types into an xterm.js terminal in the browser, keystrokes flow to the container's stdin, output streams back character by character. Supports Ctrl+C (kill) and Ctrl+D (EOF). This is the primary path — it's what makes the terminal feel alive.
 
-### Fallback Chain
+### Execution Fallback
 
-The frontend doesn't just pray the backend is up. \`execute.ts\` implements a three-tier fallback:
+The frontend checks before it fires. \`execute.ts\` gates execution:
 
 1. Check \`navigator.onLine\`. If offline, return immediately with an offline message.
-2. Hit \`/api/health\` with a 3-second timeout. If the primary backend responds, use it.
-3. If primary is down, fall back to Judge0 CE (public API via RapidAPI). Base64-encode everything, map languages to Judge0 IDs, decode the response.
-4. If everything fails, return an offline error.
+2. Hit \`/api/health\` with a 3-second timeout. If the backend responds, use it.
+3. If the backend is down, return a clear error with instructions to start the server.
 
-The user sees output either way. They don't know or care which backend ran it.
+No third-party APIs. No external dependencies. The backend is self-hosted — if it's down, the user knows.
 
 ---
 
@@ -207,7 +206,7 @@ Both layers are kept in sync by theme ID. The AMOLED Black theme is the default 
 
 ### Network Awareness
 
-\`useNetworkStatus\` hook combines \`navigator.onLine\` events with a 10-second polling loop that hits \`/api/health\`. The hook exposes \`isConnected\` (logical AND of browser online + backend healthy). When offline, the header shows a warning badge and execution falls back to Judge0 or returns an offline error.
+\`useNetworkStatus\` hook combines \`navigator.onLine\` events with a 10-second polling loop that hits \`/api/health\`. The hook exposes \`isConnected\` (logical AND of browser online + backend healthy). When offline, the header shows a warning badge and execution returns a server-unavailable error.
 
 ---
 
@@ -314,7 +313,7 @@ These are deliberate tradeoffs. The system is designed for a single-user code pl
 3. The WebSocket path is worth the complexity. The difference between "submit code, wait for response" and "type into a live terminal" is the difference between a toy and a tool.
 4. Stateless simplifies everything. No session management, no cache invalidation, no distributed state. The frontend owns the user's data. The backend is a function: code in, output out.
 5. One Go file is fine. 687 lines doing one thing well is better than 50 files doing one thing with indirection. The abstraction cost exceeds the organizational benefit at this scale.
-6. Fallbacks compound reliability. Primary backend → Judge0 → offline error. The user almost always gets output. Graceful degradation isn't overengineering, it's baseline competence.
+6. No external dependencies for execution. Self-hosted means self-reliant. If the backend is down, say so — don't route user code through third-party APIs you don't control.
 7. Users will send \`:(){ :|:& };:\` and \`while True: print("x" * 10**9)\` and \`import os; os.system("rm -rf /")\` within the first hour. The \`--pids-limit\`, \`limitedWriter\`, and \`--read-only\` flags exist because people tested these exact inputs.
 8. Security is not a feature you ship. It's a property you maintain. Every Docker CVE, every container escape technique, every privilege escalation vector — you have to keep watching. The system is as secure as the last time you checked.
 

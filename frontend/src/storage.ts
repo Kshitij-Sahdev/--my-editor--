@@ -259,7 +259,7 @@ export interface StoredExecution {
   /** Standard error */
   stderr: string;
   /** Which backend was used */
-  source: "primary" | "judge0" | "offline";
+  source: "primary" | "offline";
   /** Timestamp of execution */
   timestamp: number;
 }
