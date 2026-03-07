@@ -37,8 +37,6 @@ services:
     restart: unless-stopped
 
     environment:
-      # Coolify: route https://run.kshitijsahdev.lol → container port 8080
-      SERVICE_FQDN_APP_8080: "https://run.kshitijsahdev.lol"
       PORT: "8080"
       MAX_CONCURRENT: "${MAX_CONCURRENT:-3}"
       TIMEOUT_BATCH: "${TIMEOUT_BATCH:-10}"
@@ -61,6 +59,21 @@ services:
 
     labels:
       coolify.managed: "true"
+      # Explicit Traefik labels — Coolify's SERVICE_FQDN_APP parsing is broken
+      traefik.enable: "true"
+      # HTTPS router
+      traefik.http.routers.code-runner-https.rule: "Host(`run.kshitijsahdev.lol`)"
+      traefik.http.routers.code-runner-https.entryPoints: "https"
+      traefik.http.routers.code-runner-https.tls: "true"
+      traefik.http.routers.code-runner-https.tls.certresolver: "letsencrypt"
+      # HTTP router — redirect to HTTPS
+      traefik.http.routers.code-runner-http.rule: "Host(`run.kshitijsahdev.lol`)"
+      traefik.http.routers.code-runner-http.entryPoints: "http"
+      traefik.http.routers.code-runner-http.middlewares: "redirect-to-https"
+      # Redirect middleware
+      traefik.http.middlewares.redirect-to-https.redirectscheme.scheme: "https"
+      # Tell Traefik which port the container listens on
+      traefik.http.services.code-runner.loadbalancer.server.port: "8080"
 
   # ---------------------------------------------------------------------------
   # Language runner images (built once, used by the app at runtime)
