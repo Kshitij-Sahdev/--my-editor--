@@ -52,7 +52,8 @@ COPY --from=frontend-builder /frontend/dist ./frontend/dist
 # The user needs access to /var/run/docker.sock (mounted at runtime).
 # On most hosts the socket is group-owned by GID 999 or 998 (docker group).
 # We create a docker group with a common GID and add the runner user to it.
-RUN addgroup -g 999 -S docker && \
+# GID 999 may already be taken in the base image, so fall back gracefully.
+RUN (addgroup -g 999 -S docker || addgroup -S docker) && \
     addgroup -S runner && \
     adduser -S runner -G runner && \
     addgroup runner docker
