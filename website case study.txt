@@ -1,0 +1,85 @@
+
+const projects: Project[] = [
+  {
+    name: "run()",
+    slug: "run",
+    subdomain: "run",
+    description:
+      "A browser-based multi-language code runner that executes untrusted code inside isolated Docker containers and returns real-time stdout/stderr.",
+    whyItMatters:
+      "Lets anyone run real code from any device without installing compilers or risking their system.",
+    techStack: ["Go", "Docker", "React", "TypeScript", "Cloudflare Tunnel"],
+    mediaUrl: "/media/run.mp4",
+    mediaType: "video",
+    liveUrl: "https://run.kshitijsahdev.lol",
+    caseStudy: `
+## Overview
+
+RUN() is a remote code execution platform that lets users write and run programs in multiple languages directly from the browser.  
+Instead of running code locally, execution happens inside isolated Docker containers to ensure safety and reproducibility.
+
+## The Problem
+
+Setting up local compilers and runtimes is friction-heavy for beginners and risky for shared machines.  
+Running untrusted code directly on a host system is unsafe, yet most simple online editors rely on insecure execution or limited sandboxes.
+
+RUN() solves this by separating the editor from the execution engine and running all code in disposable containers.
+
+## Architecture
+
+![Architecture diagram](/media/run-arch.png)
+
+\`\`\`
+Browser 
+→ React Frontend 
+  → Go Execution API 
+    → Docker Runners
+      → Isolated Containers
+\`\`\`
+
+Execution flow:
+
+1. User writes code in the browser editor.
+2. Frontend sends { language, code, stdin } to the Go API.
+3. API creates a temp workspace and spins up a language-specific container.
+4. Code runs with CPU/memory/network limits.
+5. stdout and stderr are returned to the browser.
+
+## Key Decisions
+
+- **Why Go backend?** — Fast startup, strong concurrency model, perfect for process orchestration.
+- **Why Docker isolation?** — Each execution runs in a disposable container, preventing host compromise.
+- **Resource limits** — CPU, memory, and process caps prevent abuse and infinite loops.
+- **Stateless API** — Frontend and backend can scale independently.
+
+## Security Model
+
+- No network access inside containers
+- Non-root execution user
+- Temporary filesystem per run
+- Resource limits to prevent abuse
+- Containers destroyed after execution
+
+## Results
+
+| Capability              | Status |
+|-------------------------|--------|
+| Multi-language support  | ✅ |
+| Safe execution sandbox  | ✅ |
+| Real-time output        | ✅ |
+| Remote access via tunnel| ✅ |
+
+## Lessons Learned
+
+1. Running untrusted code safely is harder than building the editor.
+2. Containers are isolation, not magic — limits and timeouts matter.
+3. Separating frontend and execution services simplifies scaling later.
+4. Users will try to break the system in creative ways — expect the unexpected.
+5. Always assume the worst-case scenario when designing security measures.
+6. All those scenarios where you think "oh that won't work" — they will work, and you need to be ready for them.
+7. Everytime i think i can say i know docker, i get hit with some new exploit or escape technique that makes me realize i know nothing about docker, and that is a humbling experience, but also a reminder that security is a mindset, not a product, and that the best way to build secure systems is to always be learning and adapting to new threats and techniques.
+
+> “The safest code is the code that runs somewhere else.”\n
+> “Oh yeah that malice will run, but inside another dream, inside another dream.”
+`,
+  },
