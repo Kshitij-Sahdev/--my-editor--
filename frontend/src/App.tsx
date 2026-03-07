@@ -866,7 +866,7 @@ export default function App() {
         onToggleSidebar={handleToggleSidebar}
         outputVisible={outputVisible}
         onToggleOutput={handleToggleOutput}
-        hasOutput={true}
+        hasOutput={!!output}
       />
 
       {/* Main content area */}
