@@ -15,71 +15,310 @@ const projects: Project[] = [
     caseStudy: `
 ## Overview
 
-RUN() is a remote code execution platform that lets users write and run programs in multiple languages directly from the browser.  
-Instead of running code locally, execution happens inside isolated Docker containers to ensure safety and reproducibility.
+RUN() is a remote code execution platform. Users write code in 5 languages from a browser. Execution happens in disposable Docker containers on a remote server. The frontend never touches a compiler. The backend never trusts the code.
+
+687 lines of Go handle orchestration. ~6,000 lines of TypeScript handle the editor, terminal, file system, version control, GitHub integration, challenges, theming, and persistence. 5 minimal Dockerfiles define the sandboxes. One docker-compose.yml ties it to Coolify + Traefik for production.
+
+No frameworks on the backend. No state management libraries on the frontend. No ORMs. No databases. localStorage and Docker are the only persistence layers.
+
+---
 
 ## The Problem
 
-Setting up local compilers and runtimes is friction-heavy for beginners and risky for shared machines.  
-Running untrusted code directly on a host system is unsafe, yet most simple online editors rely on insecure execution or limited sandboxes.
+Two things are true simultaneously:
 
-RUN() solves this by separating the editor from the execution engine and running all code in disposable containers.
+1. Setting up local compilers is friction nobody asked for. Python works out of the box on most machines, everything else doesn't. A beginner doesn't need to debug PATH variables before writing their first for-loop.
+2. Running untrusted code on a host system is a non-starter. Any "online code runner" that calls \`exec()\` on bare metal is one \`rm -rf\` away from being a case study in incident response.
+
+Most solutions pick one: safe but limited (WASM sandboxes, no real I/O), or real execution but no isolation (judge APIs with trust-based limits).
+
+RUN() does both. Real compilers. Real I/O. Real isolation. Every execution is a Docker container that exists for seconds, has no network access, no root, no persistent filesystem, and hard caps on CPU, memory, and process count. The container dies after the code runs. Nothing survives.
+
+---
 
 ## Architecture
 
-![Architecture diagram](/media/run-arch.png)
-
 \`\`\`
-Browser 
-→ React Frontend 
-  → Go Execution API 
-    → Docker Runners
-      → Isolated Containers
+Browser (React + CodeMirror 6 + xterm.js)
+    │
+    ├── POST /api/run        → Batch execution (request/response)
+    ├── WS   /api/ws         → Interactive terminal (bidirectional stream)
+    └── GET  /api/health     → Liveness probe
+    │
+    ▼
+Go HTTP Server (net/http + gorilla/websocket)
+    │
+    ├── Creates temp directory
+    ├── Writes user code to file
+    ├── Spawns: docker run --rm -i --network=none --memory=256m ...
+    │
+    ▼
+Language-specific Docker container (runner-python, runner-cpp, etc.)
+    │
+    ├── Compiles (if compiled language)
+    ├── Runs binary/script
+    ├── stdout/stderr piped back
+    └── Container auto-removed on exit
 \`\`\`
 
-Execution flow:
+### Two Execution Modes
 
-1. User writes code in the browser editor.
-2. Frontend sends { language, code, stdin } to the Go API.
-3. API creates a temp workspace and spins up a language-specific container.
-4. Code runs with CPU/memory/network limits.
-5. stdout and stderr are returned to the browser.
+**Batch mode** (\`POST /api/run\`): Frontend sends \`{ language, code, stdin }\`. Backend writes code to a temp dir, runs it in a container with a 5–10 second timeout, collects stdout/stderr into buffers, returns JSON. Simple request/response. Used as fallback.
 
-## Key Decisions
+**Interactive mode** (\`WS /api/ws\`): Frontend opens a WebSocket. Sends an \`init\` message with language and code. Backend spawns the container and pipes stdin/stdout/stderr over the socket in real-time. The user types into an xterm.js terminal in the browser, keystrokes flow to the container's stdin, output streams back character by character. Supports Ctrl+C (kill) and Ctrl+D (EOF). This is the primary path — it's what makes the terminal feel alive.
 
-- **Why Go backend?** — Fast startup, strong concurrency model, perfect for process orchestration.
-- **Why Docker isolation?** — Each execution runs in a disposable container, preventing host compromise.
-- **Resource limits** — CPU, memory, and process caps prevent abuse and infinite loops.
-- **Stateless API** — Frontend and backend can scale independently.
+### Fallback Chain
 
-## Security Model
+The frontend doesn't just pray the backend is up. \`execute.ts\` implements a three-tier fallback:
 
-- No network access inside containers
-- Non-root execution user
-- Temporary filesystem per run
-- Resource limits to prevent abuse
-- Containers destroyed after execution
+1. Check \`navigator.onLine\`. If offline, return immediately with an offline message.
+2. Hit \`/api/health\` with a 3-second timeout. If the primary backend responds, use it.
+3. If primary is down, fall back to Judge0 CE (public API via RapidAPI). Base64-encode everything, map languages to Judge0 IDs, decode the response.
+4. If everything fails, return an offline error.
 
-## Results
+The user sees output either way. They don't know or care which backend ran it.
 
-| Capability              | Status |
-|-------------------------|--------|
-| Multi-language support  | ✅ |
-| Safe execution sandbox  | ✅ |
-| Real-time output        | ✅ |
-| Remote access via tunnel| ✅ |
+---
+
+## Backend Deep Dive
+
+### main.go — 687 lines, one file, zero dependencies besides gorilla/websocket
+
+The entire backend is a single Go file. No router library. No middleware framework. \`net/http\` handles routing with three \`HandleFunc\` registrations. This is intentional — the server does exactly three things and doesn't need abstractions for three things.
+
+**Configuration** is a struct literal with sane defaults: 64KB max code size, 1MB max stdin, 1MB max output, 3 concurrent executions per IP, 10s batch timeout, 5min stream timeout. All overridable via environment variables.
+
+**Language configs** map language names to Docker image names, filenames, compile commands, and run commands. Go, C++, and Java have compile steps; Python and JavaScript don't. Compiled languages get 10s timeouts. Interpreted get 5s. The compile and run commands are concatenated with \`&&\` and passed to \`sh -c\` inside the container.
+
+**Rate limiting** is per-IP with a mutex-guarded map. \`acquireSlot\` checks if the IP has exceeded \`MaxConcurrent\`, increments the count, and returns a bool. \`releaseSlot\` decrements. This runs entirely in memory — no Redis, no external state. The server restarts, the counts reset. That's fine. The threat model is "one person hammering the API," not "distributed botnet." For that, there's Traefik.
+
+**Docker execution** builds an \`exec.Command\` for \`docker run\` with these flags:
+
+- \`--rm\`: auto-remove container on exit
+- \`-i\`: keep stdin open (needed for interactive programs)
+- \`--network=none\`: zero network access
+- \`--memory=256m --memory-swap=256m\`: hard memory cap, no swap
+- \`--cpus=1.0\`: one CPU core max
+- \`--pids-limit=128\`: can't fork-bomb past 128 processes
+- \`--read-only\`: root filesystem is immutable
+- \`--cap-drop=ALL\`: drop every Linux capability
+- \`--security-opt no-new-privileges\`: can't escalate via setuid/setgid
+- \`--ulimit fsize=10485760\`: 10MB max file write
+- \`--ulimit nofile=256\`: 256 file descriptors max
+- \`--tmpfs /tmp:rw,exec,size=64m\`: writable scratch space capped at 64MB
+- \`-v tmp:/app:rw\`: mount the temp directory with user code
+
+The code file is written to a temp dir on the host, bind-mounted into the container at \`/app\`. The container's root filesystem is read-only — the only writable locations are \`/tmp\` (tmpfs) and \`/app\` (the bind mount). After execution, \`os.RemoveAll(tmp)\` deletes the host-side temp directory. The container auto-removes itself.
+
+**Native fallback**: When Docker isn't available (Termux, development machines), the server falls back to direct \`exec.Command\` calls for Python and JavaScript only. Compiled languages return "Install Docker." This lets the project work on a phone running Termux without any container runtime.
+
+**WebSocket handler** is the most complex path. It upgrades the connection, reads an \`init\` JSON message, creates a temp dir, writes the code, builds the docker command, starts the process, then spins up three goroutines: one reads stdout and sends it to the WebSocket, one reads stderr and sends it, one reads WebSocket messages and writes to stdin. A fourth goroutine waits for the process to exit and closes a \`done\` channel. The main goroutine waits on \`done\`, then waits on the \`WaitGroup\`, then sends an \`exit\` message with the exit code.
+
+**limitedWriter** caps output at 1MB. Once the limit is hit, subsequent writes are silently discarded (return \`len(p), nil\` — no error, no panic, just silence). This prevents a \`while True: print("x")\` from eating all memory.
+
+**Static file server** serves the built React SPA from \`./frontend/dist\` with SPA fallback — any path that doesn't match a real file serves \`index.html\`. Checks both \`./frontend/dist\` (Docker layout) and \`../frontend/dist\` (dev layout).
+
+---
+
+## Frontend Deep Dive
+
+### State Architecture
+
+All state lives in \`App.tsx\`. No Redux, no Zustand, no Context. Just \`useState\` and \`useCallback\` with prop drilling through the Sidebar into four child panels. The entire app state is serialized to localStorage on every change via a \`useEffect\` that watches the state object.
+
+\`AppState\` consists of:
+- \`files: FileSystemItem[]\` — a flat array of files and folders with \`parentId\` references forming a tree
+- \`commits: Commit[]\` — version history snapshots, each storing the full file content
+- \`activeFileId\` — which file is open
+- \`sidebarWidth\`, \`outputHeight\` — persisted layout dimensions
+- \`settings: EditorSettings\` — theme, font, font size, tab size, toggles
+
+No database. No API for user data. Open the app, your files are there. Clear localStorage, they're gone. The storage key is versioned (\`code-editor-v4\`) so breaking schema changes don't corrupt existing data.
+
+### Editor (CodeMirror 6)
+
+The editor is built on CodeMirror 6, configured imperatively. Every time the file ID, language, or settings change, the entire \`EditorView\` is destroyed and recreated. This sounds expensive but CodeMirror 6 initializes in single-digit milliseconds — destroying and recreating is simpler than managing extension compartments for every configurable option.
+
+Extensions include: language support (Python, C++, Java, Go, JavaScript, Markdown from \`@codemirror/lang-*\`), line numbers, active line highlighting, bracket matching, word wrap, custom keybindings (\`Mod-Enter\` to run, \`Mod-s\` to commit), and one of 8 hand-crafted themes.
+
+Callbacks (\`onRun\`, \`onContentChange\`) are stored in refs to avoid recreating the editor when parent state changes. The editor reads from refs, not from closure-captured values.
+
+Markdown files get a three-mode view: Edit (CodeMirror), Preview (react-markdown with GFM + rehype-highlight + rehype-raw), and Split (both side by side). The markdown renderer has custom styled components for every HTML element, all using CSS variables for theme consistency.
+
+Easter egg: files with names matching \`/snow|winter|frost|blizzard|christmas|xmas|december|holiday/i\` trigger an animated snowflake overlay via the \`magic-snowflakes\` library.
+
+### Terminal (xterm.js)
+
+\`XTerminal.tsx\` wraps xterm.js with a WebSocket transport layer. It exposes a global \`window.terminalAPI\` object with \`run()\`, \`kill()\`, \`clear()\`, \`write()\`, and \`writeln()\` methods. When the run button is pressed and \`window.terminalAPI\` exists, the app calls \`terminalAPI.run(language, code)\` instead of the batch HTTP endpoint. This skips the HTTP/JSON overhead entirely and gives the user a live interactive terminal.
+
+The WebSocket protocol is simple JSON messages:
+- Outbound: \`{ type: "init", language, code }\`, \`{ type: "stdin", data }\`, \`{ type: "eof" }\`, \`{ type: "kill" }\`
+- Inbound: \`{ type: "stdout", data }\`, \`{ type: "stderr", data }\`, \`{ type: "exit", code }\`, \`{ type: "error", data }\`
+
+Keyboard handling processes Ctrl+C as kill, Ctrl+D as EOF, Backspace as destructive cursor movement, and everything else as stdin forwarding. Input is echoed locally — the server doesn't echo it back.
+
+WebSocket URL is derived from the current page URL with protocol swapping (\`http→ws\`, \`https→wss\`). In development, the Vite proxy handles the \`/api/ws\` path and forwards it to \`localhost:8080\`.
+
+### File System
+
+The file system is a flat array with parent references, not a nested tree. \`FileTree.tsx\` renders it recursively by filtering children of each folder. Files get language-appropriate icons. Folders expand/collapse independently. New file creation auto-detects language from extension via a comprehensive extension map (22 extensions mapped to 7 language types).
+
+50-file hard limit. The count excludes \`settings.conf\` (a special file that renders the Settings panel instead of the editor).
+
+### Version Control
+
+Lightweight, file-scoped commit system. Each commit stores the complete file content (not a diff). \`History.tsx\` renders a timeline with expandable previews and one-click restore. Restoring a commit replaces the editor content and updates the "saved" baseline used for dirty-state detection.
+
+Change detection: compare current editor content against the last commit's content (or the original file content if no commits exist). If they differ, the file shows as "modified."
+
+### GitHub Integration
+
+Push files to and pull files from GitHub repositories via the GitHub REST API v3. Authentication is handled by Clerk — the OAuth token is fetched via \`getToken({ template: "github" })\`. Push uses the Contents API (\`PUT /repos/:owner/:repo/contents/:path\`), which requires the existing file SHA for updates. Pull uses \`GET\` on the same endpoint and decodes base64 content.
+
+Rate limit tracking parses response headers and displays remaining/limit with a visual progress bar. Warns when remaining < 10.
+
+### Coding Challenges
+
+5 challenges (Two Sum, Reverse String, FizzBuzz, Palindrome Check, Max Subarray) with difficulty ratings, descriptions, examples, constraints, starter code in all 5 languages, and predefined test cases. The challenge runner executes each test case sequentially by calling \`executeCode()\` and comparing trimmed stdout against expected output. Custom test cases can be added at runtime.
+
+### Theming System
+
+Two layers:
+
+1. **Website theming** (\`types.ts\`): 8 themes define CSS variable maps (\`--color-bg\`, \`--color-surface\`, \`--color-accent\`, etc.) applied to \`document.documentElement.style\` on theme change.
+2. **Editor theming** (\`themes.ts\`): 8 matching CodeMirror 6 themes, each with an \`EditorView.theme()\` definition and a \`HighlightStyle.define()\` for syntax colors.
+
+Both layers are kept in sync by theme ID. The AMOLED Black theme is the default — pure \`#000000\` backgrounds with neon syntax highlighting and emerald green accents.
+
+9 font options including JetBrains Mono, Fira Code, IBM 3270 (self-hosted TTF), and others loaded from Google Fonts. Font changes update both the CSS variable (\`--font-mono\`) and the CodeMirror editor configuration.
+
+### CSS
+
+985 lines of hand-written CSS. No Tailwind, no CSS-in-JS library (though components use inline style objects). The CSS handles:
+
+- Global reset and theme tokens
+- CodeMirror overrides with neon text-shadow glow effects
+- Custom scrollbars
+- 12 animation keyframes (spin, pulse, fade-in, slide-down, slide-up, scale-in, bounce-in, shake, ping, cursor-blink, letter-pop, bracket-pulse)
+- Responsive breakpoints at 768px / portrait orientation
+- Touch-target sizing via \`clamp()\`
+- Settings panel interactions (theme cards, font previews, toggle switches)
+- Resizer handles with accent-colored hover indicators
+
+### Network Awareness
+
+\`useNetworkStatus\` hook combines \`navigator.onLine\` events with a 10-second polling loop that hits \`/api/health\`. The hook exposes \`isConnected\` (logical AND of browser online + backend healthy). When offline, the header shows a warning badge and execution falls back to Judge0 or returns an offline error.
+
+---
+
+## Container Security Model
+
+Every execution container runs with:
+
+| Constraint | Value | Why |
+|---|---|---|
+| Network | \`--network=none\` | No outbound calls, no reverse shells, no data exfil |
+| Memory | \`256MB\` hard cap, no swap | OOM killer fires, container dies |
+| CPU | \`1.0\` core | No starving the host |
+| PIDs | \`128\` max | Fork bombs hit the ceiling fast |
+| Filesystem | Read-only root + 64MB tmpfs | Can't write to container image, scratch space is tiny |
+| Capabilities | All dropped | No \`CAP_NET_RAW\`, no \`CAP_SYS_ADMIN\`, nothing |
+| Privileges | \`no-new-privileges\` | Can't escalate via setuid binaries |
+| File size | \`10MB\` ulimit | Can't fill disk with output |
+| File descriptors | \`256\` ulimit | Can't exhaust fd table |
+| User | Non-root (\`runner\`) | Defense in depth |
+| Lifetime | Auto-removed (\`--rm\`) | Nothing persists |
+
+The Docker socket is mounted read-only into the app container. The app container runs as a non-root user in a group that can access the socket. The runner containers are spawned siblings, not children — they share the host's Docker daemon but have no access to each other or the app container.
+
+The threat model: assume the user is actively trying to escape the sandbox, exfiltrate data, mine crypto, or take down the host. The constraints above make all of those either impossible or self-limiting.
+
+---
+
+## Deployment
+
+### Production (Coolify + Traefik)
+
+The \`docker-compose.yml\` defines one service: the app. Coolify handles:
+
+1. Cloning the repo
+2. Running the multi-stage Dockerfile (Node build → Go build → Alpine runtime)
+3. Starting the container with Traefik labels for \`run.kshitijsahdev.lol\`
+4. SSL via Let's Encrypt
+5. Health checks on \`/api/health\` before routing traffic
+
+The multi-stage Dockerfile produces a ~30MB image: Alpine base + ca-certificates + docker-cli + the Go binary + the built React SPA. The Go binary is statically compiled (\`CGO_ENABLED=0\`) with stripped symbols (\`-ldflags="-s -w"\`).
+
+Runner images must be pre-built on the host with \`build-runners.sh\`. They're not pulled from a registry — they're local images. The script builds all 5, labels them with \`code-runner=true\`, and reports sizes.
+
+### Development (start.sh)
+
+\`start.sh\` is a 305-line bash script that handles 4 modes:
+- \`dev\`: builds backend, starts it, starts Vite dev server with hot reload
+- \`tunnel\`: builds everything, starts backend, opens a Cloudflare quick tunnel for a public URL
+- \`docker\`: builds and runs the whole thing in a container
+- (default): builds everything, starts backend serving the SPA
+
+It detects Termux, Docker availability, and cleans up all child processes on exit via a trap handler.
+
+Vite's dev server proxies \`/api\` to \`localhost:8080\` with WebSocket support, so the frontend talks to the same paths in dev and prod.
+
+### Auth
+
+Clerk handles authentication. The frontend wraps the app in \`<ClerkProvider>\` if a publishable key exists. The GitHub panel uses Clerk's OAuth token to call the GitHub API. Auth is entirely optional — if no Clerk key is set, the app runs without auth and the GitHub panel shows a sign-in prompt.
+
+---
+
+## What the Codebase Doesn't Do
+
+- No database. State is localStorage on the client, temp dirs on the server.
+- No user accounts beyond Clerk OAuth. No profiles, no saved state server-side.
+- No file sharing between users.
+- No collaboration.
+- No diff-based version control. Full snapshots only.
+- No container pooling or pre-warming. Every execution cold-starts a container.
+- No queue. Rate limiting is the only backpressure mechanism.
+- No logging to external services. stdout to the terminal.
+- No tests. Zero test files in the repo.
+
+These are deliberate tradeoffs. The system is designed for a single-user code playground, not a multi-tenant SaaS. The constraints match the use case.
+
+---
+
+## Numbers
+
+| Metric | Value |
+|---|---|
+| Backend LOC | 687 (single file) |
+| Frontend LOC | ~6,000 across 19 source files |
+| CSS LOC | 985 |
+| Languages supported | 5 (Python, JavaScript, Go, C++, Java) |
+| Editor themes | 8 |
+| Font options | 9 |
+| Coding challenges | 5 |
+| Runner Dockerfiles | 5 (4-8 lines each) |
+| Max container memory | 256MB |
+| Max container lifetime | 5min (interactive), 10s (batch) |
+| File limit | 50 per workspace |
+| Max code size | 64KB |
+| Max output size | 1MB |
+| Dependencies (backend) | 1 (gorilla/websocket) |
+| Dependencies (frontend) | 22 (React, CodeMirror 6, xterm.js, Clerk, lucide-react, Radix, react-markdown, etc.) |
+
+---
 
 ## Lessons Learned
 
-1. Running untrusted code safely is harder than building the editor.
-2. Containers are isolation, not magic — limits and timeouts matter.
-3. Separating frontend and execution services simplifies scaling later.
-4. Users will try to break the system in creative ways — expect the unexpected.
-5. Always assume the worst-case scenario when designing security measures.
-6. All those scenarios where you think "oh that won't work" — they will work, and you need to be ready for them.
-7. Everytime i think i can say i know docker, i get hit with some new exploit or escape technique that makes me realize i know nothing about docker, and that is a humbling experience, but also a reminder that security is a mindset, not a product, and that the best way to build secure systems is to always be learning and adapting to new threats and techniques.
+1. Running untrusted code safely is the entire engineering challenge. The editor is the easy part. The sandbox is where you earn your keep.
+2. Containers are not magic. They're cgroups and namespaces with a nice API. Without explicit limits on memory, CPU, PIDs, network, and filesystem, a container is just a process with a different root directory.
+3. The WebSocket path is worth the complexity. The difference between "submit code, wait for response" and "type into a live terminal" is the difference between a toy and a tool.
+4. Stateless simplifies everything. No session management, no cache invalidation, no distributed state. The frontend owns the user's data. The backend is a function: code in, output out.
+5. One Go file is fine. 687 lines doing one thing well is better than 50 files doing one thing with indirection. The abstraction cost exceeds the organizational benefit at this scale.
+6. Fallbacks compound reliability. Primary backend → Judge0 → offline error. The user almost always gets output. Graceful degradation isn't overengineering, it's baseline competence.
+7. Users will send \`:(){ :|:& };:\` and \`while True: print("x" * 10**9)\` and \`import os; os.system("rm -rf /")\` within the first hour. The \`--pids-limit\`, \`limitedWriter\`, and \`--read-only\` flags exist because people tested these exact inputs.
+8. Security is not a feature you ship. It's a property you maintain. Every Docker CVE, every container escape technique, every privilege escalation vector — you have to keep watching. The system is as secure as the last time you checked.
 
-> “The safest code is the code that runs somewhere else.”\n
-> “Oh yeah that malice will run, but inside another dream, inside another dream.”
+> "The safest code is the code that runs somewhere else."
+> "It'll run. But inside a cage, inside a cage."
 `,
   },
