@@ -59,21 +59,23 @@ services:
 
     labels:
       coolify.managed: "true"
-      # Explicit Traefik labels — Coolify's SERVICE_FQDN_APP parsing is broken
+      # Explicit Traefik labels
       traefik.enable: "true"
+      # Service definition — container port
+      traefik.http.services.code-runner-svc.loadbalancer.server.port: "8080"
       # HTTPS router
       traefik.http.routers.code-runner-https.rule: "Host(`run.kshitijsahdev.lol`)"
       traefik.http.routers.code-runner-https.entryPoints: "https"
+      traefik.http.routers.code-runner-https.service: "code-runner-svc"
       traefik.http.routers.code-runner-https.tls: "true"
       traefik.http.routers.code-runner-https.tls.certresolver: "letsencrypt"
       # HTTP router — redirect to HTTPS
       traefik.http.routers.code-runner-http.rule: "Host(`run.kshitijsahdev.lol`)"
       traefik.http.routers.code-runner-http.entryPoints: "http"
+      traefik.http.routers.code-runner-http.service: "code-runner-svc"
       traefik.http.routers.code-runner-http.middlewares: "redirect-to-https"
       # Redirect middleware
       traefik.http.middlewares.redirect-to-https.redirectscheme.scheme: "https"
-      # Tell Traefik which port the container listens on
-      traefik.http.services.code-runner.loadbalancer.server.port: "8080"
 
   # ---------------------------------------------------------------------------
   # Language runner images (built once, used by the app at runtime)
