@@ -8,9 +8,7 @@ version: "3.9"
 #   2. Point it at your repo
 #   3. Set the required environment variables in the Coolify UI:
 #        VITE_CLERK_PUBLISHABLE_KEY  — from Clerk dashboard
-#   4. Deploy — Coolify + Traefik handle SSL automatically
-#   5. After first deploy, run `docker compose --profile build-runners build`
-#      on the host to build runner images (one-time setup)
+#   4. Deploy — that's it. Runner images are auto-built on first startup.
 #
 # REQUIRED ENV VARS (set in Coolify → Environment):
 #   SERVICE_FQDN_APP                  — auto-set by Coolify
@@ -42,8 +40,8 @@ services:
       TIMEOUT_BATCH: "${TIMEOUT_BATCH:-10}"
 
     volumes:
-      # Mount the Docker socket so the Go server can spawn runner containers.
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Mount the Docker socket — needed for spawning runners AND building runner images
+      - /var/run/docker.sock:/var/run/docker.sock
       # Shared temp directory — the app writes code files here, and runner
       # containers mount the same host path. Without this, the app's /tmp
       # is inside its own container filesystem, invisible to the host Docker.
@@ -78,42 +76,9 @@ services:
       traefik.http.routers.code-runner-https.tls: "true"
       traefik.http.routers.code-runner-https.tls.certresolver: "letsencrypt"
 
-  # ---------------------------------------------------------------------------
-  # Language runner images (built once, used by the app at runtime)
-  # These are build-only — they don't run as long-lived services.
-  # The Go server spawns them via `docker run` when executing user code.
-  #
-  # Build with:  docker compose --profile build-runners build
-  # ---------------------------------------------------------------------------
-  runner-python:
-    build: dep/runner-python
-    image: runner-python:latest
-    profiles: ["build-runners"]
-    command: ["true"]
-
-  runner-js:
-    build: dep/runner-javascript
-    image: runner-js:latest
-    profiles: ["build-runners"]
-    command: ["true"]
-
-  runner-go:
-    build: dep/runner-go
-    image: runner-go:latest
-    profiles: ["build-runners"]
-    command: ["true"]
-
-  runner-cpp:
-    build: dep/runner-cpp
-    image: runner-cpp:latest
-    profiles: ["build-runners"]
-    command: ["true"]
-
-  runner-java:
-    build: dep/runner-java
-    image: runner-java:latest
-    profiles: ["build-runners"]
-    command: ["true"]
+  # Runner images are NOT separate compose services.
+  # They're auto-built by the app container's entrypoint script on startup
+  # using the mounted Docker socket. Images persist on the host between deploys.
 
 networks:
   coolify:

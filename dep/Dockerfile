@@ -48,6 +48,17 @@ COPY --from=backend-builder /code-runner .
 # Copy built frontend into the expected relative path
 COPY --from=frontend-builder /frontend/dist ./frontend/dist
 
+# Bundle runner Dockerfiles so the entrypoint can build them on the host
+COPY dep/runner-python/Dockerfile     ./runners/python/Dockerfile
+COPY dep/runner-javascript/Dockerfile ./runners/javascript/Dockerfile
+COPY dep/runner-go/Dockerfile         ./runners/go/Dockerfile
+COPY dep/runner-cpp/Dockerfile        ./runners/cpp/Dockerfile
+COPY dep/runner-java/Dockerfile       ./runners/java/Dockerfile
+
+# Entrypoint: checks/builds runner images, then starts the server
+COPY dep/entrypoint.sh ./entrypoint.sh
+RUN chmod +x ./entrypoint.sh
+
 # Run as root so we can talk to the Docker socket.
 # The socket is bind-mounted from the host and is typically owned by root:docker.
 # Running as non-root requires matching the host's docker GID, which varies.
@@ -55,4 +66,4 @@ COPY --from=frontend-builder /frontend/dist ./frontend/dist
 
 EXPOSE 8080
 
-CMD ["./code-runner"]
+ENTRYPOINT ["./entrypoint.sh"]
