@@ -45,7 +45,11 @@ FAILED=()
 
 for LANG in "${!RUNNERS[@]}"; do
   DOCKERFILE="${RUNNERS[$LANG]}"
-  IMAGE="runner-${LANG}"
+  # Map language names to image names (must match Go backend's LangConfig)
+  case "$LANG" in
+    javascript) IMAGE="runner-js" ;;
+    *)          IMAGE="runner-${LANG}" ;;
+  esac
   FILEPATH="${RUNNERS_DIR}/${DOCKERFILE}"
 
   if [[ ! -f "$FILEPATH" ]]; then

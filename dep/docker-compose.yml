@@ -5,18 +5,15 @@ version: "3.9"
 #
 # HOW TO DEPLOY ON COOLIFY:
 #   1. Create a new "Docker Compose" service in Coolify
-#   2. Point it at your repo (or paste this file)
+#   2. Point it at your repo
 #   3. Set the required environment variables in the Coolify UI:
 #        VITE_CLERK_PUBLISHABLE_KEY  — from Clerk dashboard
-#   4. Run `./dep/build-runners.sh` on your server ONCE before first deploy
-#      (runner images must exist on the Docker host Coolify uses)
-#   5. Hit Deploy — Coolify + Traefik handle SSL automatically
-#
-# DOMAIN:
-#   run.kshitijsahdev.lol  (hardcoded below, also in SERVICE_FQDN_APP)
+#   4. Deploy — Coolify + Traefik handle SSL automatically
+#   5. After first deploy, run `docker compose --profile build-runners build`
+#      on the host to build runner images (one-time setup)
 #
 # REQUIRED ENV VARS (set in Coolify → Environment):
-#   SERVICE_FQDN_APP                  — auto-set by Coolify (override below)
+#   SERVICE_FQDN_APP                  — auto-set by Coolify
 #   VITE_CLERK_PUBLISHABLE_KEY        — Clerk publishable key for auth
 #
 # OPTIONAL ENV VARS:
@@ -39,86 +36,24 @@ services:
 
     restart: unless-stopped
 
+    # Tell Coolify the public FQDN so it creates Traefik routes automatically
+    SERVICE_FQDN_APP: "${SERVICE_FQDN_APP:-run.kshitijsahdev.lol}"
+
     environment:
       PORT: "8080"
       MAX_CONCURRENT: "${MAX_CONCURRENT:-3}"
       TIMEOUT_BATCH: "${TIMEOUT_BATCH:-10}"
-
-    volumes:
-      # Mount the Docker socket so the Go server can spawn runner containers.
-      # This is intentional — the server IS the container orchestrator.
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-
-    networks:
-      - coolify                 # Coolify's shared Traefik network
-      - internal                # Private network (no external exposure)
-
-    # Healthcheck — Coolify uses this to gate traffic
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/health"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
-
-    labels:
-      # -----------------------------------------------------------------------
-      # Traefik routing labels for run.kshitijsahdev.lol
-      # -----------------------------------------------------------------------
-      traefik.enable: "true"
-
-      # HTTP router — redirect to HTTPS
-      traefik.http.routers.code-runner-http.rule: "Host(`run.kshitijsahdev.lol`)"
-      traefik.http.routers.code-runner-http.entrypoints: "http"
-      traefik.http.routers.code-runner-http.middlewares: "redirect-to-https"
-
-      # HTTPS router
-      traefik.http.routers.code-runner.rule: "Host(`run.kshitijsahdev.lol`)"
-      traefik.http.routers.code-runner.entrypoints: "https"
-      traefik.http.routers.code-runner.tls: "true"
-      traefik.http.routers.code-runner.tls.certresolver: "letsencrypt"
-
-      # Service port (what Traefik forwards to)
-      traefik.http.services.code-runner.loadbalancer.server.port: "8080"
-
-      # WebSocket support — increased timeouts for long-lived WS connections
-      traefik.http.middlewares.code-runner-headers.headers.customrequestheaders.X-Forwarded-Proto: "https"
-      traefik.http.middlewares.code-runner-buffering.buffering.maxRequestBodyBytes: "0"
-      traefik.http.middlewares.code-runner-buffering.buffering.memRequestBodyBytes: "0"
-      traefik.http.routers.code-runner.middlewares: "code-runner-headers"
-
-      # Coolify managed label (do not remove)
-      coolify.managed: "true"
-
-  # ---------------------------------------------------------------------------
-  # Language runner images (built once by Coolify, used by the app at runtime)
-  # These are build-only — they don't run as services.
-  # The Go server spawns them via `docker run` when executing user code.
-  # ---------------------------------------------------------------------------
-  runner-python:
-    build:
-      context: dep
-      dockerfile: Dockerfile.python
-    image: runner-python:latest
-    profiles: ["build-runners"]
-    command: ["true"]
-
-  runner-js:
-    build:
-    # Tell Coolify the public FQDN so it can create Traefik routes automatically
-    SERVICE_FQDN_APP: "${SERVICE_FQDN_APP:-run.kshitijsahdev.lol}"
 
     ports:
       - "8080"
 
     volumes:
       # Mount the Docker socket so the Go server can spawn runner containers.
-      # This is intentional — the server IS the container orchestrator.
       - /var/run/docker.sock:/var/run/docker.sock:ro
 
     networks:
-      - coolify                 # Coolify's shared Traefik network
-      - internal                # Private network (no external exposure)
+      - coolify
+      - internal
 
     # Healthcheck — Coolify uses this to gate traffic
     healthcheck:
@@ -129,6 +64,47 @@ services:
       start_period: 10s
 
     labels:
-      # Minimal managed label — Coolify will synthesize Traefik rules
       coolify.managed: "true"
+
+  # ---------------------------------------------------------------------------
+  # Language runner images (built once, used by the app at runtime)
+  # These are build-only — they don't run as long-lived services.
+  # The Go server spawns them via `docker run` when executing user code.
+  #
+  # Build with:  docker compose --profile build-runners build
+  # ---------------------------------------------------------------------------
+  runner-python:
+    build: dep/runner-python
+    image: runner-python:latest
+    profiles: ["build-runners"]
+    command: ["true"]
+
+  runner-js:
+    build: dep/runner-javascript
+    image: runner-js:latest
+    profiles: ["build-runners"]
+    command: ["true"]
+
+  runner-go:
+    build: dep/runner-go
+    image: runner-go:latest
+    profiles: ["build-runners"]
+    command: ["true"]
+
+  runner-cpp:
+    build: dep/runner-cpp
+    image: runner-cpp:latest
+    profiles: ["build-runners"]
+    command: ["true"]
+
+  runner-java:
+    build: dep/runner-java
     image: runner-java:latest
+    profiles: ["build-runners"]
+    command: ["true"]
+
+networks:
+  coolify:
+    external: true
+  internal:
+    driver: bridge
