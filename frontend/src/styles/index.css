@@ -592,20 +592,20 @@ pre code.hljs {
   padding: 0 20px !important;
 }
 
-/* Neon text effect for code */
-.cm-line {
+/* Neon text effect for code (opt-in via settings) */
+.neon-glow-enabled .cm-line {
   text-shadow: 0 0 2px currentColor, 0 0 4px currentColor;
 }
 
-/* Letter pop animation on typing */
-.cm-line span {
+/* Letter pop animation on typing (opt-in via settings) */
+.pop-animation-enabled .cm-line span {
   display: inline-block;
   animation: none;
 }
 
 /* Trigger pop animation on content changes */
-.cm-editor.cm-focused .cm-line:has(.cm-matchingBracket),
-.cm-editor.cm-focused .cm-activeLine .cm-line span:last-child {
+.pop-animation-enabled .cm-editor.cm-focused .cm-line:has(.cm-matchingBracket),
+.pop-animation-enabled .cm-editor.cm-focused .cm-activeLine .cm-line span:last-child {
   animation: letter-pop 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
@@ -652,48 +652,48 @@ pre code.hljs {
   animation: bracket-pulse 0.3s ease-out;
 }
 
-/* Syntax highlighting with neon glow */
-.cm-keyword {
+/* Syntax highlighting with neon glow (opt-in via settings) */
+.neon-glow-enabled .cm-keyword {
   color: var(--neon-pink) !important;
   text-shadow: 0 0 4px var(--neon-pink), 0 0 8px var(--neon-pink);
 }
 
-.cm-string, .cm-string2 {
+.neon-glow-enabled .cm-string, .neon-glow-enabled .cm-string2 {
   color: var(--neon-green) !important;
   text-shadow: 0 0 4px var(--neon-green), 0 0 8px var(--neon-green);
 }
 
-.cm-number {
+.neon-glow-enabled .cm-number {
   color: var(--neon-orange) !important;
   text-shadow: 0 0 4px var(--neon-orange), 0 0 8px var(--neon-orange);
 }
 
-.cm-comment {
+.neon-glow-enabled .cm-comment {
   color: #666 !important;
   font-style: italic;
   text-shadow: none;
 }
 
-.cm-variableName {
+.neon-glow-enabled .cm-variableName {
   color: var(--neon-cyan) !important;
   text-shadow: 0 0 3px var(--neon-cyan);
 }
 
-.cm-function, .cm-propertyName {
+.neon-glow-enabled .cm-function, .neon-glow-enabled .cm-propertyName {
   color: var(--neon-blue) !important;
   text-shadow: 0 0 4px var(--neon-blue), 0 0 8px var(--neon-blue);
 }
 
-.cm-operator {
+.neon-glow-enabled .cm-operator {
   color: var(--neon-yellow) !important;
   text-shadow: 0 0 3px var(--neon-yellow);
 }
 
-.cm-punctuation {
+.neon-glow-enabled .cm-punctuation {
   color: #888 !important;
 }
 
-.cm-typeName, .cm-className {
+.neon-glow-enabled .cm-typeName, .neon-glow-enabled .cm-className {
   color: var(--neon-purple) !important;
   text-shadow: 0 0 4px var(--neon-purple), 0 0 8px var(--neon-purple);
 }

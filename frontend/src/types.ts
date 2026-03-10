@@ -128,6 +128,8 @@ export interface EditorSettings {
   highlightActiveLine: boolean;
   tabSize: number;
   autoShowOutput: boolean;
+  neonGlow: boolean;
+  popAnimation: boolean;
 }
 
 /**
@@ -299,6 +301,8 @@ export const DEFAULT_SETTINGS: EditorSettings = {
   highlightActiveLine: true,
   tabSize: 4,
   autoShowOutput: true,
+  neonGlow: false,
+  popAnimation: false,
 };
 
 // =============================================================================

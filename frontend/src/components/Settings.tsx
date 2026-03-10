@@ -550,6 +550,50 @@ export default function Settings({ settings, onSettingsChange }: SettingsProps) 
               />
             </div>
           </div>
+
+          <div className="option-row" style={styles.optionRow}>
+            <div style={styles.optionLabel}>
+              <span style={styles.optionName}>Neon Glow</span>
+              <span style={styles.optionDesc}>Neon light text-shadow effect on code syntax</span>
+            </div>
+            <div
+              className={`toggle-switch ${localSettings.neonGlow ? 'active' : ''}`}
+              style={{
+                ...styles.toggle,
+                ...(localSettings.neonGlow ? styles.toggleActive : {}),
+              }}
+              onClick={() => handleToggle('neonGlow')}
+            >
+              <div
+                style={{
+                  ...styles.toggleKnob,
+                  ...(localSettings.neonGlow ? styles.toggleKnobActive : {}),
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="option-row" style={styles.optionRow}>
+            <div style={styles.optionLabel}>
+              <span style={styles.optionName}>Pop Animation</span>
+              <span style={styles.optionDesc}>Letter pop animation when typing in the editor</span>
+            </div>
+            <div
+              className={`toggle-switch ${localSettings.popAnimation ? 'active' : ''}`}
+              style={{
+                ...styles.toggle,
+                ...(localSettings.popAnimation ? styles.toggleActive : {}),
+              }}
+              onClick={() => handleToggle('popAnimation')}
+            >
+              <div
+                style={{
+                  ...styles.toggleKnob,
+                  ...(localSettings.popAnimation ? styles.toggleKnobActive : {}),
+                }}
+              />
+            </div>
+          </div>
         </div>
 
         {/* Tab Settings */}

@@ -794,7 +794,11 @@ export default function Editor({
 
       {/* Editor/Preview content area with snowflakes wrapper */}
       <div 
-        ref={snowflakesContainerRef} 
+        ref={snowflakesContainerRef}
+        className={[
+          settings?.neonGlow ? 'neon-glow-enabled' : '',
+          settings?.popAnimation ? 'pop-animation-enabled' : '',
+        ].filter(Boolean).join(' ') || undefined}
         style={{ 
           flex: 1, 
           display: 'flex', 

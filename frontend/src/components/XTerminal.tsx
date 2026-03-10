@@ -98,8 +98,8 @@ export function XTerminal({ isVisible, onClose }: TerminalProps) {
     terminal.writeln("\x1b[36m║\x1b[0m  \x1b[33mCtrl+C\x1b[0m = kill process                         \x1b[36m║\x1b[0m");
     terminal.writeln("\x1b[36m║\x1b[0m  \x1b[33mCtrl+D\x1b[0m = end input (EOF for JS/stream-based)  \x1b[36m║\x1b[0m");
     terminal.writeln("\x1b[36m╠════════════════════════════════════════════════╣\x1b[0m");
-    terminal.writeln("\x1b[36m║\x1b[0m  \x1b[90mTip: Create \x1b[35msettings.conf\x1b[90m for editor config\x1b[0m  \x1b[36m║\x1b[0m");
-    terminal.writeln("\x1b[36m║\x1b[0m  \x1b[90mTip: Name a file \x1b[34msnow\x1b[90m/\x1b[34mwinter\x1b[90m for a surprise\x1b[0m ❄️\x1b[36m║\x1b[0m");
+    terminal.writeln("\x1b[36m║\x1b[0m  \x1b[90mTip: Create \x1b[35msettings.conf\x1b[90m for editor config\x1b[0m   \x1b[36m║\x1b[0m");
+    terminal.writeln("\x1b[36m║\x1b[0m  \x1b[90mTip: Name a file \x1b[34msnow\x1b[90m/\x1b[34mwinter\x1b[90m for a surprise\x1b[0m ❄️ \x1b[36m║\x1b[0m");
     terminal.writeln("\x1b[36m╚════════════════════════════════════════════════╝\x1b[0m");
     terminal.writeln("");
 
