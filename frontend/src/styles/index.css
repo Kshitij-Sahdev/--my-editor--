@@ -151,6 +151,71 @@ body {
   50% { opacity: 1; }
 }
 
+/* Glowing animated arrows on hover trigger zones */
+@keyframes glow-bounce-right {
+  0%, 100% { transform: translateY(-50%) translateX(0); opacity: 0.5; }
+  50% { transform: translateY(-50%) translateX(4px); opacity: 1; }
+}
+
+@keyframes glow-bounce-up {
+  0%, 100% { transform: translateX(-50%) translateY(0); opacity: 0.5; }
+  50% { transform: translateX(-50%) translateY(-4px); opacity: 1; }
+}
+
+/* Sidebar trigger arrow (points RIGHT = open direction) */
+.hover-trigger-zone.trigger-sidebar {
+  cursor: pointer;
+}
+
+.hover-trigger-zone.trigger-sidebar .trigger-arrow {
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 18px;
+  color: var(--color-accent);
+  text-shadow: 0 0 6px var(--color-accent-glow), 0 0 12px var(--color-accent-glow);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  font-family: system-ui, sans-serif;
+  line-height: 1;
+  animation: glow-bounce-right 1.4s ease-in-out infinite;
+  animation-play-state: paused;
+}
+
+.hover-trigger-zone.trigger-sidebar:hover .trigger-arrow {
+  opacity: 1;
+  animation-play-state: running;
+}
+
+/* Output trigger arrow (points UP = open direction) */
+.hover-trigger-zone.trigger-output {
+  cursor: pointer;
+}
+
+.hover-trigger-zone.trigger-output .trigger-arrow {
+  position: absolute;
+  left: 50%;
+  bottom: 6px;
+  transform: translateX(-50%);
+  font-size: 18px;
+  color: var(--color-accent);
+  text-shadow: 0 0 6px var(--color-accent-glow), 0 0 12px var(--color-accent-glow);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  font-family: system-ui, sans-serif;
+  line-height: 1;
+  animation: glow-bounce-up 1.4s ease-in-out infinite;
+  animation-play-state: paused;
+}
+
+.hover-trigger-zone.trigger-output:hover .trigger-arrow {
+  opacity: 1;
+  animation-play-state: running;
+}
+
 .resizer {
   background: transparent;
   transition: background 0.2s ease;

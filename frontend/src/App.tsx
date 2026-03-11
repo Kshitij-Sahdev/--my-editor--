@@ -621,9 +621,9 @@ export default function App() {
 
     setIsRunning(true);
     
-    // Auto-show output panel if setting is enabled
+    // Auto-show output panel temporarily (hover state, not pinned)
     if (state?.settings?.autoShowOutput) {
-      setOutputPinned(true);
+      setOutputHovered(true);
     }
 
     // Try to use interactive terminal via WebSocket
@@ -874,11 +874,11 @@ export default function App() {
         {/* Output hover trigger zone - on BOTTOM edge (desktop only) */}
         {!outputVisible && !isMobile && (
           <div 
-            className="hover-trigger-zone"
+            className="hover-trigger-zone trigger-output"
             style={styles.outputTrigger}
             onMouseEnter={() => setOutputHovered(true)}
           >
-            <div style={styles.outputIndicator} className="animate-pulse" />
+            <span className="trigger-arrow">▲</span>
           </div>
         )}
 
@@ -894,6 +894,13 @@ export default function App() {
             }}
             onMouseEnter={() => !isMobile && setOutputHovered(true)}
             onMouseLeave={() => !isMobile && setOutputHovered(false)}
+            onFocus={() => !isMobile && setOutputHovered(true)}
+            onBlur={(e) => {
+              // Auto-hide when focus leaves the output panel entirely
+              if (!isMobile && !outputPinned && !e.currentTarget.contains(e.relatedTarget as Node)) {
+                setOutputHovered(false);
+              }
+            }}
           >
             <div style={styles.outputInner}>
               {/* Vertical resizer on top edge of output */}
@@ -998,13 +1005,13 @@ export default function App() {
         {/* Sidebar hover trigger zone - on LEFT edge (desktop only) */}
         {!isMobile && (
           <div 
-            className="hover-trigger-zone"
+            className="hover-trigger-zone trigger-sidebar"
             style={styles.sidebarTrigger}
             onMouseEnter={() => setSidebarHovered(true)}
           >
-            {/* Visual indicator - only show when sidebar is hidden */}
+            {/* Glowing arrow indicator - only show when sidebar is hidden */}
             {!sidebarVisible && (
-              <div style={styles.sidebarIndicator} className="animate-pulse" />
+              <span className="trigger-arrow">▶</span>
             )}
           </div>
         )}
