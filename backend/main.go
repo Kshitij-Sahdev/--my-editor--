@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/exec"
@@ -79,7 +80,7 @@ var languages = map[string]LangConfig{
 		Image:    "runner-go",
 		Compile:  "go build -o /tmp/prog main.go",
 		Run:      "/tmp/prog",
-		Timeout:  10 * time.Second,
+		Timeout:  30 * time.Second,
 	},
 	"cpp": {
 		Filename: "main.cpp",
@@ -137,6 +138,14 @@ func getClientIP(r *http.Request) string {
 
 func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// Recover from panics to prevent server crash
+		defer func() {
+			if rec := recover(); rec != nil {
+				fmt.Fprintf(os.Stderr, "[PANIC RECOVERED] %v\n", rec)
+				http.Error(w, "Internal server error", http.StatusInternalServerError)
+			}
+		}()
+
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
@@ -228,8 +237,18 @@ func executeDocker(code, stdin string, lang LangConfig) RunResponse {
 	ctx, cancel := context.WithTimeout(context.Background(), lang.Timeout)
 	defer cancel()
 
+	// Unique container name so we can force-remove it on cleanup
+	containerName := fmt.Sprintf("run-%s-%d", filepath.Base(tmp), rand.Intn(100000))
+
+	// Larger tmpfs for compiled languages (Go needs ~256MB for build cache)
+	tmpfsSize := "128m"
+	if lang.Compile != "" {
+		tmpfsSize = "256m"
+	}
+
 	args := []string{
 		"run", "--rm", "-i",
+		"--name", containerName,
 		"--network=none",
 		"--memory=256m",
 		"--memory-swap=256m",
@@ -240,7 +259,7 @@ func executeDocker(code, stdin string, lang LangConfig) RunResponse {
 		"--security-opt", "no-new-privileges",
 		"--ulimit", "fsize=104857600:104857600",
 		"--ulimit", "nofile=256:256",
-		"--tmpfs", "/tmp:rw,exec,size=128m",
+		"--tmpfs", "/tmp:rw,exec,size=" + tmpfsSize,
 		"-e", "GOCACHE=/tmp/go-cache",
 		"-e", "GOMODCACHE=/tmp/go-mod",
 		"-v", tmp + ":/app:rw",
@@ -248,6 +267,9 @@ func executeDocker(code, stdin string, lang LangConfig) RunResponse {
 		lang.Image,
 		"sh", "-c", runCmd,
 	}
+
+	// Force-remove container on cleanup (catches orphans from timeout kills)
+	defer exec.Command("docker", "rm", "-f", containerName).Run()
 
 	cmd := exec.CommandContext(ctx, "docker", args...)
 	cmd.Stdin = strings.NewReader(stdin)
@@ -339,6 +361,13 @@ type WSResponse struct {
 }
 
 func wsHandler(w http.ResponseWriter, r *http.Request) {
+	// Recover from panics in the WS handler (goroutines inside won't be caught by net/http)
+	defer func() {
+		if rec := recover(); rec != nil {
+			fmt.Fprintf(os.Stderr, "[WS PANIC RECOVERED] %v\n", rec)
+		}
+	}()
+
 	clientIP := getClientIP(r)
 
 	if !acquireSlot(clientIP) {
@@ -401,8 +430,18 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 
 	var cmd *exec.Cmd
 	if config.DockerAvail {
+		// Unique container name so we can force-remove it on cleanup
+		containerName := fmt.Sprintf("ws-%s-%d", filepath.Base(tmp), rand.Intn(100000))
+
+		// Larger tmpfs for compiled languages (Go needs ~256MB for build cache)
+		tmpfsSize := "128m"
+		if lang.Compile != "" {
+			tmpfsSize = "256m"
+		}
+
 		args := []string{
 			"run", "--rm", "-i",
+			"--name", containerName,
 			"--network=none",
 			"--memory=256m",
 			"--memory-swap=256m",
@@ -411,7 +450,7 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 			"--read-only",
 			"--cap-drop=ALL",
 			"--security-opt", "no-new-privileges",
-			"--tmpfs", "/tmp:rw,exec,size=128m",
+			"--tmpfs", "/tmp:rw,exec,size=" + tmpfsSize,
 			"-e", "GOCACHE=/tmp/go-cache",
 			"-e", "GOMODCACHE=/tmp/go-mod",
 			"-v", tmp + ":/app:rw",
@@ -420,6 +459,9 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 			"sh", "-c", runCmd,
 		}
 		cmd = exec.CommandContext(ctx, "docker", args...)
+
+		// Force-remove container on cleanup (catches orphans from timeout kills)
+		defer exec.Command("docker", "rm", "-f", containerName).Run()
 	} else {
 		// Native fallback
 		switch lang.Filename {
@@ -566,7 +608,7 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 	} else {
 		fmt.Printf("FAILED (exit %d)\n", exitCode)
 	}
-	fmt.Println("----------------------------------------\n")
+	fmt.Println("----------------------------------------")
 
 	conn.WriteJSON(WSResponse{Type: "exit", Code: exitCode})
 }
