@@ -24,7 +24,7 @@ services:
   # ---------------------------------------------------------------------------
   app:
     build:
-      context: ..
+      context: .
       dockerfile: dep/Dockerfile
       args:
         - VITE_CLERK_PUBLISHABLE_KEY=${VITE_CLERK_PUBLISHABLE_KEY:-}
