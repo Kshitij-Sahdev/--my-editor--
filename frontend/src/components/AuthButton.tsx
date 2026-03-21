@@ -46,6 +46,15 @@ const styles = {
 // =============================================================================
 
 export default function AuthButton() {
+  const clerkEnabled = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
+  if (!clerkEnabled) {
+    return null;
+  }
+
+  return <AuthButtonWithClerk />;
+}
+
+function AuthButtonWithClerk() {
   const { isSignedIn } = useAuth();
 
   if (!isSignedIn) {
@@ -80,6 +89,11 @@ export default function AuthButton() {
  * Used by GitHubPanel for API calls.
  */
 export function useGitHubToken() {
+  const clerkEnabled = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
+  if (!clerkEnabled) {
+    return { getGitHubToken: async () => null };
+  }
+
   const { getToken } = useAuth();
   
   async function getGitHubToken(): Promise<string | null> {

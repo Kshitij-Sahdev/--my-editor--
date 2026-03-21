@@ -179,6 +179,26 @@ export default function GitHubPanel({
   editorContent,
   onPullFile,
 }: GitHubPanelProps) {
+  const clerkEnabled = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
+
+  if (!clerkEnabled) {
+    return <div style={styles.notSignedIn}>Clerk auth is not configured. Set VITE_CLERK_PUBLISHABLE_KEY.</div>;
+  }
+
+  return (
+    <GitHubPanelWithAuth
+      activeFile={activeFile}
+      editorContent={editorContent}
+      onPullFile={onPullFile}
+    />
+  );
+}
+
+function GitHubPanelWithAuth({
+  activeFile,
+  editorContent,
+  onPullFile,
+}: GitHubPanelProps) {
   const { isSignedIn, getToken } = useAuth();
 
   // Push state

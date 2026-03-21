@@ -57,6 +57,16 @@ require() {
     done
 }
 
+self_heal() {
+    local heal_script="$SCRIPT_DIR/dep/self-heal.sh"
+    if [[ -f "$heal_script" ]]; then
+        log "Running self-heal checks..."
+        bash "$heal_script" || warn "Self-heal reported issues; continuing startup"
+    else
+        warn "Self-heal script not found: $heal_script"
+    fi
+}
+
 # -----------------------------------------------------------------------------
 # Build Functions
 # -----------------------------------------------------------------------------
@@ -264,6 +274,7 @@ main() {
             ;;
         dev)
             require go node npm
+            self_heal
             build_backend
             start_backend
             start_frontend_dev
@@ -271,6 +282,7 @@ main() {
             ;;
         tunnel)
             require go node npm
+            self_heal
             build_frontend
             build_backend
             start_backend
@@ -283,6 +295,7 @@ main() {
             ;;
         build)
             require go node npm
+            self_heal
             build_frontend
             build_backend
             info "Build complete"
@@ -290,6 +303,7 @@ main() {
             ;;
         *)
             require go node npm
+            self_heal
             build_frontend
             build_backend
             start_backend

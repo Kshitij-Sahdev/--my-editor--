@@ -5,7 +5,9 @@ FROM node:20-alpine AS frontend-builder
 
 # Accept Clerk key as build arg — Vite bakes VITE_* into the JS bundle
 ARG VITE_CLERK_PUBLISHABLE_KEY=""
+ARG VITE_CLERK_PROXY_URL=""
 ENV VITE_CLERK_PUBLISHABLE_KEY=${VITE_CLERK_PUBLISHABLE_KEY}
+ENV VITE_CLERK_PROXY_URL=${VITE_CLERK_PROXY_URL}
 
 WORKDIR /frontend
 

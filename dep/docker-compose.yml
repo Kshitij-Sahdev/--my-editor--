@@ -1,5 +1,3 @@
-version: "3.9"
-
 # =============================================================================
 # Code Runner — Coolify Deployment  →  run.kshitijsahdev.lol
 #
@@ -26,10 +24,11 @@ services:
   # ---------------------------------------------------------------------------
   app:
     build:
-      context: .
+      context: ..
       dockerfile: dep/Dockerfile
       args:
         - VITE_CLERK_PUBLISHABLE_KEY=${VITE_CLERK_PUBLISHABLE_KEY:-}
+        - VITE_CLERK_PROXY_URL=${VITE_CLERK_PROXY_URL:-}
     image: code-runner-app:latest
 
     restart: unless-stopped

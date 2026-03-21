@@ -1,0 +1,22 @@
+# VCS
+.git
+.gitignore
+
+# Node artifacts
+**/node_modules
+frontend/dist
+
+# Go/build artifacts
+backend/server
+backend/runner
+backend/code-runner
+*.out
+
+# Local/dev artifacts
+**/.DS_Store
+**/*.log
+tmp/
+
+# Non-deploy playground/docs assets
+docker-playground/
+website case study.txt

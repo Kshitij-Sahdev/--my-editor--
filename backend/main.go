@@ -105,6 +105,7 @@ var languages = map[string]LangConfig{
 var (
 	rateLimiter   = make(map[string]int)
 	rateLimiterMu sync.Mutex
+	runnerBuildMu sync.Mutex
 )
 
 func acquireSlot(ip string) bool {
@@ -212,6 +213,10 @@ func runHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func executeDocker(code, stdin string, lang LangConfig) RunResponse {
+	if err := ensureRunnerImage(lang.Image); err != nil {
+		return RunResponse{Stderr: "runner image self-heal failed: " + err.Error()}
+	}
+
 	// Create temp dir under /tmp/code-runner so the path is valid on both
 	// the host and inside this container (bind-mounted in docker-compose).
 	os.MkdirAll("/tmp/code-runner", 0777)
@@ -396,6 +401,13 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		conn.WriteJSON(WSResponse{Type: "error", Data: "Unsupported language"})
 		return
+	}
+
+	if config.DockerAvail {
+		if err := ensureRunnerImage(lang.Image); err != nil {
+			conn.WriteJSON(WSResponse{Type: "error", Data: "runner image self-heal failed: " + err.Error()})
+			return
+		}
 	}
 
 	fmt.Printf("RUNNING: %s\n", initMsg.Language)
@@ -651,6 +663,103 @@ func (lw *limitedWriter) Write(p []byte) (int, error) {
 func checkDocker() bool {
 	cmd := exec.Command("docker", "info")
 	return cmd.Run() == nil
+}
+
+func runnerImageWithTag(image string) string {
+	if strings.Contains(image, ":") {
+		return image
+	}
+	return image + ":latest"
+}
+
+func runnerLangFromImage(image string) (string, bool) {
+	base := strings.TrimSuffix(image, ":latest")
+	switch base {
+	case "runner-python":
+		return "python", true
+	case "runner-js":
+		return "javascript", true
+	case "runner-go":
+		return "go", true
+	case "runner-cpp":
+		return "cpp", true
+	case "runner-java":
+		return "java", true
+	default:
+		return "", false
+	}
+}
+
+func runnerImageExists(image string) bool {
+	cmd := exec.Command("docker", "image", "inspect", runnerImageWithTag(image))
+	return cmd.Run() == nil
+}
+
+type runnerBuildCandidate struct {
+	dockerfile string
+	context    string
+}
+
+func runnerBuildCandidates(lang string) []runnerBuildCandidate {
+	return []runnerBuildCandidate{
+		{dockerfile: filepath.Join("./runners", lang, "Dockerfile"), context: filepath.Join("./runners", lang)},
+		{dockerfile: filepath.Join("../runners", lang, "Dockerfile"), context: filepath.Join("../runners", lang)},
+		{dockerfile: filepath.Join("./dep/runners", "Dockerfile."+lang), context: "./dep/runners"},
+		{dockerfile: filepath.Join("../dep/runners", "Dockerfile."+lang), context: "../dep/runners"},
+		{dockerfile: filepath.Join("/app/runners", lang, "Dockerfile"), context: filepath.Join("/app/runners", lang)},
+	}
+}
+
+func ensureRunnerImage(image string) error {
+	if !config.DockerAvail {
+		return fmt.Errorf("docker is unavailable")
+	}
+
+	if runnerImageExists(image) {
+		return nil
+	}
+
+	runnerBuildMu.Lock()
+	defer runnerBuildMu.Unlock()
+
+	if runnerImageExists(image) {
+		return nil
+	}
+
+	lang, ok := runnerLangFromImage(image)
+	if !ok {
+		return fmt.Errorf("unknown runner image: %s", image)
+	}
+
+	taggedImage := runnerImageWithTag(image)
+
+	var attempts []string
+	for _, candidate := range runnerBuildCandidates(lang) {
+		if _, err := os.Stat(candidate.dockerfile); err != nil {
+			continue
+		}
+		if _, err := os.Stat(candidate.context); err != nil {
+			continue
+		}
+
+		fmt.Printf("[self-heal] building %s from %s\n", taggedImage, candidate.dockerfile)
+		cmd := exec.Command("docker", "build", "-f", candidate.dockerfile, "-t", taggedImage, candidate.context)
+		var output bytes.Buffer
+		cmd.Stdout = &output
+		cmd.Stderr = &output
+		if err := cmd.Run(); err == nil {
+			fmt.Printf("[self-heal] built %s\n", taggedImage)
+			return nil
+		} else {
+			attempts = append(attempts, fmt.Sprintf("%s (context %s): %s", candidate.dockerfile, candidate.context, strings.TrimSpace(output.String())))
+		}
+	}
+
+	if len(attempts) == 0 {
+		return fmt.Errorf("no Dockerfile found for %s", taggedImage)
+	}
+
+	return fmt.Errorf("failed to build %s; attempts: %s", taggedImage, strings.Join(attempts, " | "))
 }
 
 // =============================================================================

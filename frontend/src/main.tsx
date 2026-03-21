@@ -5,11 +5,15 @@ import App from "./App";
 import "./styles/index.css";
 
 const CLERK_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+const CLERK_PROXY_URL = import.meta.env.VITE_CLERK_PROXY_URL;
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     {CLERK_KEY ? (
-      <ClerkProvider publishableKey={CLERK_KEY} proxyUrl="https://clerk.kshitijsahdev.lol/v1">
+      <ClerkProvider
+        publishableKey={CLERK_KEY}
+        {...(CLERK_PROXY_URL ? { proxyUrl: CLERK_PROXY_URL } : {})}
+      >
         <App />
       </ClerkProvider>
     ) : (
