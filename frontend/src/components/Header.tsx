@@ -11,7 +11,7 @@
 
 "use client";
 
-import { Play, Terminal, FolderOpen, TerminalSquare } from "lucide-react";
+import { Play, Terminal, FolderOpen, TerminalSquare, Settings as SettingsIcon } from "lucide-react";
 import type { FileItem } from "../types";
 import { RUNNABLE_LANGUAGES } from "../types";
 import AuthButton from "./AuthButton";
@@ -41,6 +41,8 @@ interface HeaderProps {
   onToggleOutput?: () => void;
   /** Whether output exists (to show output button) */
   hasOutput?: boolean;
+  /** Open settings panel */
+  onOpenSettings?: () => void;
 }
 
 // =============================================================================
@@ -117,6 +119,19 @@ const styles = {
     transition: 'all 0.2s',
     border: 'none',
   } as React.CSSProperties,
+  settingsButton: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '38px',
+    height: '38px',
+    borderRadius: '10px',
+    border: '1px solid var(--color-border)',
+    backgroundColor: 'var(--color-surface-2)',
+    color: 'var(--color-text-secondary)',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+  } as React.CSSProperties,
   runButtonEnabled: {
     backgroundColor: 'var(--color-accent)',
     color: 'white',
@@ -166,6 +181,7 @@ export default function Header({
   outputVisible = false,
   onToggleOutput,
   hasOutput = false,
+  onOpenSettings,
 }: HeaderProps) {
   /**
    * Check if the current file's language can be executed.
@@ -241,6 +257,17 @@ export default function Header({
 
         {/* Auth button */}
         <AuthButton />
+
+        {/* Settings button */}
+        <button
+          onClick={onOpenSettings}
+          style={styles.settingsButton}
+          className="hover-lift"
+          title="Open Settings"
+          aria-label="Open settings"
+        >
+          <SettingsIcon size={16} />
+        </button>
 
         {/* Run button */}
         <button

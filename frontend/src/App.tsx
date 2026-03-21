@@ -715,6 +715,42 @@ export default function App() {
     });
   }, []);
 
+  const handleOpenSettings = useCallback(() => {
+    setState((prev) => {
+      if (!prev) return prev;
+
+      const existingSettingsFile = prev.files.find(
+        (f) => f.type === "file" && f.name === "settings.conf"
+      ) as FileItem | undefined;
+
+      if (existingSettingsFile) {
+        currentContentRef.current = existingSettingsFile.content;
+        setEditorContent(existingSettingsFile.content);
+        const fileCommits = getFileCommits(prev.commits, existingSettingsFile.id);
+        setSavedContent(fileCommits.length > 0 ? fileCommits[0].content : existingSettingsFile.content);
+        return { ...prev, activeFileId: existingSettingsFile.id };
+      }
+
+      const settingsFile = createFile("settings.conf", "text", null);
+      const settingsContent = [
+        "# Editor Settings",
+        "# This file opens the Settings panel.",
+        "# Use the Settings button in the header or click this file.",
+      ].join("\n");
+      const settingsFileWithContent = { ...settingsFile, content: settingsContent };
+
+      currentContentRef.current = settingsFileWithContent.content;
+      setEditorContent(settingsFileWithContent.content);
+      setSavedContent(settingsFileWithContent.content);
+
+      return {
+        ...prev,
+        files: [...prev.files, settingsFileWithContent],
+        activeFileId: settingsFileWithContent.id,
+      };
+    });
+  }, []);
+
   // ---------------------------------------------------------------------------
   // GITHUB PULL FILE HANDLER
   // ---------------------------------------------------------------------------
@@ -867,6 +903,7 @@ export default function App() {
         outputVisible={outputVisible}
         onToggleOutput={handleToggleOutput}
         hasOutput={!!output}
+        onOpenSettings={handleOpenSettings}
       />
 
       {/* Main content area */}
